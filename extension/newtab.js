@@ -757,7 +757,7 @@ function draw(dt) {
   /* ruler */
   const s = mk.s, ry = crisp(rulerY);
   ctx.beginPath(); ctx.strokeStyle = 'rgba(21,21,21,0.18)';
-  ctx.moveTo(rulerX0, ry); ctx.lineTo(rulerX1, ry); ctx.stroke();
+  ctx.moveTo(rulerX0, ry); ctx.lineTo(bx1, ry); ctx.stroke();   // baseline runs to the clock's right edge; ticks keep the pixel pitch
   for (let pass = 0; pass < 2; pass++) {
     ctx.beginPath();
     ctx.strokeStyle = pass ? 'rgba(21,21,21,0.7)' : 'rgba(21,21,21,0.2)';
