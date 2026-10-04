@@ -133,8 +133,8 @@ function layout() {
   }
   TS = Math.max(3, Math.round(P * 0.8 * DPR) / DPR);     // whole device pixels
   GRAV = P * 120;
-  rp = Math.max(1, Math.floor((bx1 - bx0) * DPR / 59)) / DPR;   // device-pixel ruler pitch
-  rulerX0 = bx0; rulerX1 = bx0 + 59 * rp;
+  rp = (bx1 - bx0) / 60;                    // 60 intervals: the 0 and 60 ticks sit on the clock's edge guides
+  rulerX0 = bx0; rulerX1 = bx1;
   floorY = Math.round(Math.min(floorIdeal, H - Math.max(54, H * 0.075)) * DPR) / DPR;
   maxH = Math.max(2, Math.floor((floorY - rulerY - 2.5 * P) / P));
   // floor sits on the digit lattice
@@ -757,11 +757,11 @@ function draw(dt) {
   /* ruler */
   const s = mk.s, ry = crisp(rulerY);
   ctx.beginPath(); ctx.strokeStyle = 'rgba(21,21,21,0.18)';
-  ctx.moveTo(rulerX0, ry); ctx.lineTo(bx1, ry); ctx.stroke();   // baseline runs to the clock's right edge; ticks keep the pixel pitch
+  ctx.moveTo(rulerX0, ry); ctx.lineTo(rulerX1, ry); ctx.stroke();
   for (let pass = 0; pass < 2; pass++) {
     ctx.beginPath();
     ctx.strokeStyle = pass ? 'rgba(21,21,21,0.7)' : 'rgba(21,21,21,0.2)';
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i <= 60; i++) {
       if ((i <= s) !== (pass === 1)) continue;
       const x = crisp(markerX(i)), tl = i % 15 === 0 ? 9 : i % 5 === 0 ? 6 : 3;
       ctx.moveTo(x, ry); ctx.lineTo(x, ry - tl);
@@ -771,7 +771,7 @@ function draw(dt) {
   ctx.font = FONT_RULER; if (HAS_LS) ctx.letterSpacing = LS_RULER;
   ctx.fillStyle = 'rgba(21,21,21,0.38)';
   for (let k = 0; k < 4; k++) ctx.fillText(RULER_LABELS[k], markerX(k * 15) + 3, rulerY + 13);
-  ctx.textAlign = 'right'; ctx.fillText('59', rulerX1, rulerY + 13); ctx.textAlign = 'left';
+  ctx.textAlign = 'right'; ctx.fillText('60', rulerX1, rulerY + 13); ctx.textAlign = 'left';
   // ten-second segment
   const tt = clock - tenT0;
   if (tt >= 0 && tt < 0.8) {
