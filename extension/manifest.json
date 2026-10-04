@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kinetic Clock New Tab",
   "short_name": "Kinetic Clock",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A quiet new tab: a live clock whose digits are built, dropped and flipped by small sprung tiles.",
   "chrome_url_overrides": { "newtab": "newtab.html" },
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }

@@ -215,9 +215,14 @@ function sTen() {
   noiseHit(t, 2600, 6, 0.2, 0.05); tone(t, 988, 0.05, 0.12);
   noiseHit(t + 0.06, 3600, 7, 0.1, 0.03);
 }
+// Landing taps share a small budget so a burst of tiles reads as a few clicks, not a rattle:
+// at most 3 in a row, refilled at 8 per second, at least 60 ms apart, and none during the intro.
+let tapTokens = 3;
 function sTap(vol) {
-  if (!audible()) return;
-  const now = performance.now(); if (now - lastTap < 28) return; lastTap = now;
+  if (!audible() || clock < introUntil) return;
+  tapTokens = Math.min(3, tapTokens + (clock - lastTap) * 8);
+  if (tapTokens < 1 || clock - lastTap < 0.06) return;
+  tapTokens -= 1; lastTap = clock;
   noiseHit(AC.currentTime + 0.002, rnd(1800, 5200), 9, 0.02 + 0.03 * Math.min(1, vol), 0.022);
 }
 function sChime() {
