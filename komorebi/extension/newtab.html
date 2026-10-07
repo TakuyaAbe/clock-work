@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>New Tab</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+:root{--wall:#bdb5aa;--ink:rgba(70,62,52,.6)}
+html,body{margin:0;height:100%;background:var(--wall);overflow:hidden}
+body{-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.date{position:fixed;left:max(26px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));
+  font:500 10px/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.24em;color:var(--ink);
+  pointer-events:none;opacity:0;transition:opacity 1.6s ease,color 2s linear;-webkit-font-smoothing:antialiased}
+.date.on{opacity:1}
+.fallback{position:fixed;inset:0;display:grid;place-items:center;font:600 18vh/1 "Helvetica Neue",Arial,sans-serif;color:#f7efe2;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label=""></canvas>
+<div class="date" id="date"></div>
+<script src="newtab.js"></script>
+</body>
+</html>
