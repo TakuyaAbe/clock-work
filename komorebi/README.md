@@ -1,15 +1,15 @@
 # Komorebi Clock New Tab
 
-A Chrome extension that replaces the new tab page with the time written in sunlight through leaves on a plaster wall.
+A Chrome extension that replaces the new tab page with sunlight falling through leaves onto a plaster wall. It is a clock without numerals.
 
-The time is only half there. Where the digits fall, the canopy opens a little more, so ordinary pinhole images of the sun gather a little more densely; leaf shadows and stray spots keep drifting across them. At a glance it is dappled light on a wall, and the time appears when you look for it. The digits sway and breathe with the wind. On each new minute a small cloud passes: the light dims, the leaves rearrange into the new time, and the sun comes back. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
+The light keeps time the way real light does. Where the canopy thins, the light gathers into a pool, and that pool walks across the wall through the day: low on the left after sunrise, high in the middle at noon, low on the right before sunset. At night a fainter pool of moonlight makes the same crossing. Each minute the shadow of a small cloud passes over. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
 
 ![screenshot](store/screenshot_1280x800_a.png)
 
 - Manifest V3, no permissions, no network requests
-- WebGL 1 and vanilla JavaScript, no build step, no web fonts
+- WebGL 1 and vanilla JavaScript, no build step, no text on screen
 - Moving the pointer nudges the wind and the sun a little; it works without a mouse
-- Respects `prefers-reduced-motion` (slower wind, no gusts, near-instant minute change)
+- Respects `prefers-reduced-motion` (slower wind, no gusts, a shorter and fainter cloud)
 - Rendering is capped at about 30 fps when idle, with device pixel ratio capped at 1.5
 
 ## Install from source

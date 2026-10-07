@@ -4,7 +4,6 @@
 /* Komorebi Clock: the time, written in sunlight through leaves on a plaster wall. */
 
 const canvas = document.getElementById('c');
-const $date = document.getElementById('date');
 const rootStyle = document.documentElement.style;
 
 /* ------------------------------------------------------------------ */
@@ -41,20 +40,20 @@ function nowInfo() {
 /*  Light of the day: keyframes on the clock hour                     */
 /* ------------------------------------------------------------------ */
 /* h, sun rgb, sun intensity, ambient rgb, ellipse axis angle (deg),
-   elongation, softness, outside openness, mote amount, digit glow     */
-const NIGHT = { sun: [0.62, 0.74, 1.0], si: 0.62, amb: [0.050, 0.062, 0.092], ang: 74, el: 1.25, soft: 0.50, open: 0.20, mote: 0.18, glow: 0.10 };
+   elongation, softness, canopy openness, mote amount, pool glow      */
+const NIGHT = { sun: [0.62, 0.74, 1.0], si: 0.62, amb: [0.050, 0.062, 0.092], ang: 74, el: 1.25, soft: 0.50, open: 0.23, mote: 0.18, glow: 0.10 };
 const KEYS = [
   [0.0, NIGHT],
   [4.5, NIGHT],
-  [5.4, { sun: [0.86, 0.66, 0.80], si: 0.55, amb: [0.105, 0.095, 0.125], ang: 22, el: 2.3, soft: 0.46, open: 0.24, mote: 0.30, glow: 0.08 }],
-  [6.3, { sun: [1.0, 0.58, 0.44], si: 0.85, amb: [0.215, 0.160, 0.165], ang: 18, el: 2.5, soft: 0.38, open: 0.28, mote: 0.75, glow: 0.05 }],
-  [7.4, { sun: [1.0, 0.74, 0.50], si: 1.00, amb: [0.285, 0.250, 0.235], ang: 28, el: 2.0, soft: 0.32, open: 0.32, mote: 0.90, glow: 0.035 }],
-  [9.5, { sun: [1.0, 0.90, 0.79], si: 1.08, amb: [0.345, 0.335, 0.340], ang: 52, el: 1.45, soft: 0.28, open: 0.34, mote: 0.75, glow: 0.03 }],
-  [12.5, { sun: [1.0, 0.965, 0.91], si: 1.15, amb: [0.385, 0.375, 0.370], ang: 88, el: 1.06, soft: 0.25, open: 0.34, mote: 0.55, glow: 0.025 }],
-  [15.0, { sun: [1.0, 0.90, 0.76], si: 1.10, amb: [0.330, 0.325, 0.335], ang: 124, el: 1.4, soft: 0.28, open: 0.34, mote: 0.75, glow: 0.03 }],
-  [16.9, { sun: [1.0, 0.58, 0.20], si: 0.98, amb: [0.265, 0.205, 0.170], ang: 150, el: 2.15, soft: 0.30, open: 0.32, mote: 1.0, glow: 0.04 }],
-  [18.3, { sun: [1.0, 0.44, 0.17], si: 0.92, amb: [0.165, 0.125, 0.140], ang: 162, el: 2.55, soft: 0.36, open: 0.28, mote: 0.85, glow: 0.06 }],
-  [19.3, { sun: [0.86, 0.52, 0.58], si: 0.62, amb: [0.095, 0.090, 0.135], ang: 118, el: 1.8, soft: 0.46, open: 0.24, mote: 0.35, glow: 0.09 }],
+  [5.4, { sun: [0.86, 0.66, 0.80], si: 0.55, amb: [0.105, 0.095, 0.125], ang: 22, el: 2.3, soft: 0.46, open: 0.28, mote: 0.30, glow: 0.08 }],
+  [6.3, { sun: [1.0, 0.58, 0.44], si: 0.85, amb: [0.215, 0.160, 0.165], ang: 18, el: 2.5, soft: 0.38, open: 0.32, mote: 0.75, glow: 0.05 }],
+  [7.4, { sun: [1.0, 0.74, 0.50], si: 1.00, amb: [0.285, 0.250, 0.235], ang: 28, el: 2.0, soft: 0.32, open: 0.37, mote: 0.90, glow: 0.035 }],
+  [9.5, { sun: [1.0, 0.90, 0.79], si: 1.08, amb: [0.345, 0.335, 0.340], ang: 52, el: 1.45, soft: 0.28, open: 0.39, mote: 0.75, glow: 0.03 }],
+  [12.5, { sun: [1.0, 0.965, 0.91], si: 1.15, amb: [0.385, 0.375, 0.370], ang: 88, el: 1.06, soft: 0.25, open: 0.39, mote: 0.55, glow: 0.025 }],
+  [15.0, { sun: [1.0, 0.90, 0.76], si: 1.10, amb: [0.330, 0.325, 0.335], ang: 124, el: 1.4, soft: 0.28, open: 0.39, mote: 0.75, glow: 0.03 }],
+  [16.9, { sun: [1.0, 0.58, 0.20], si: 0.98, amb: [0.265, 0.205, 0.170], ang: 150, el: 2.15, soft: 0.30, open: 0.37, mote: 1.0, glow: 0.04 }],
+  [18.3, { sun: [1.0, 0.44, 0.17], si: 0.92, amb: [0.165, 0.125, 0.140], ang: 162, el: 2.55, soft: 0.36, open: 0.32, mote: 0.85, glow: 0.06 }],
+  [19.3, { sun: [0.86, 0.52, 0.58], si: 0.62, amb: [0.095, 0.090, 0.135], ang: 118, el: 1.8, soft: 0.46, open: 0.28, mote: 0.35, glow: 0.09 }],
   [20.2, NIGHT],
   [24.0, NIGHT]
 ];
@@ -98,13 +97,7 @@ const gl = canvas.getContext('webgl', {
   antialias: false, alpha: false, depth: false, stencil: false,
   premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'low-power'
 });
-function showFallback() {
-  const d = document.createElement('div'); d.className = 'fallback';
-  const tick = () => { d.textContent = nowInfo().key; };
-  tick(); setInterval(tick, 1000);
-  document.body.appendChild(d);
-  $date.textContent = nowInfo().date; $date.classList.add('on');
-}
+function showFallback() { /* without WebGL the page stays a quiet wall */ }
 if (!gl) { showFallback(); return; }
 
 const NOISE = `
@@ -154,22 +147,6 @@ void main(){
   gl_FragColor = vec4(clamp(h0, 0., 1.), clamp(n * .5 + .5, 0., 1.), mottle);
 }`;
 
-/* Digit mask crossfade: an organic dissolve, as if leaves rearranged. */
-const FRAG_MIX = `
-precision mediump float;
-uniform sampler2D uA;
-uniform sampler2D uB;
-uniform vec3 uX;   /* progress, aspect, unused */
-uniform vec2 uRes;
-${NOISE}
-void main(){
-  vec2 uv = gl_FragCoord.xy / uRes;
-  vec2 q = uv * vec2(uX.y, 1.);
-  float n = .68 * vnoise(q * 4.5 + 2.3) + .32 * vnoise(q * 13. + 7.1);
-  float k = smoothstep(n - .25, n + .25, uX.x * 1.5 - .25);
-  gl_FragColor = mix(texture2D(uA, uv), texture2D(uB, uv), k);
-}`;
-
 /* Light field: direct light through the canopy, with the time opening it. */
 const FRAG_LIGHT = `
 precision highp float;
@@ -178,7 +155,7 @@ uniform vec4 uSunG;    /* parallax.xy, gustX, gustAmp */
 uniform vec4 uSway;    /* far.xy, mid.xy */
 uniform vec4 uMisc;    /* gustDir, flutterBase, haze, outside openness */
 uniform vec4 uAxis;    /* ellipse axis.xy, sqrt(elongation), softness */
-uniform vec4 uMaskM;   /* halfW, yBot, 1/(2 halfW), 1/(0.5 - yBot) */
+uniform vec4 uPool;    /* the sun's pool: centre.xy (wall units), radius, strength */
 uniform vec4 uShad;    /* near shadow offset.xy, near blur, breathing */
 uniform vec2 uBrSc;
 uniform vec4 uLA[16];
@@ -187,7 +164,6 @@ uniform vec4 uJA[4];
 uniform vec4 uLB[12];
 uniform vec4 uWB[6];
 uniform vec4 uJB[3];
-uniform sampler2D uMask;
 ${NOISE}
 
 float hash11(float p){ p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p); }
@@ -196,7 +172,7 @@ float gapLo(vec2 p){
   vec2 x = p * .92 + vec2(3.1, 7.7);
   return .5 * vnoise(x) + .25 * vnoise(mat2(1.6, 1.2, -1.2, 1.6) * x) + .094;
 }
-vec2 muv(vec2 q){ return vec2((q.x + uMaskM.x) * uMaskM.z, (q.y - uMaskM.y) * uMaskM.w); }
+float poolAt(vec2 q){ vec2 d = (q - uPool.xy) * vec2(.72, 1.); return uPool.w * exp(-dot(d, d) / (uPool.z * uPool.z)); }
 
 /* one pinhole image: area-preserving ellipse along the sun axis, soft rim */
 float spot(vec2 dv, vec2 ax, float sel, float r, float soft){
@@ -206,7 +182,7 @@ float spot(vec2 dv, vec2 ax, float sel, float r, float soft){
 }
 
 /* sparse canopy pinholes */
-float spots(vec2 p, vec2 toGap, float sc, float rmin, float rmax, float soft, float seed,
+float spots(vec2 p, vec2 toGap, vec2 toWall, float sc, float rmin, float rmax, float soft, float seed,
             vec2 ax, float sel, float flut, float t, float open){
   vec2 q = p * sc;
   vec2 ci = floor(q), cf = fract(q);
@@ -216,7 +192,8 @@ float spots(vec2 p, vec2 toGap, float sc, float rmin, float rmax, float soft, fl
       vec2 o = vec2(float(i), float(j));
       vec2 c = ci + o;
       float k = hash12(c * 1.37 + seed * 3.1);
-      float dens = (.16 + .84 * smoothstep(.40, .58, gapLo((c + .5) / sc + toGap))) * open;
+      /* existence is decided per cell from uniform offsets only, so no spot is ever cut in half */
+      float dens = (.16 + .84 * smoothstep(.40, .58, gapLo((c + .5) / sc + toGap))) * open * (1. + .6 * poolAt((c + .5) / sc + toWall));
       if (k > dens * .85) continue;
       vec2 h = hash22(c + seed);
       float ph = k * 61.7;
@@ -230,8 +207,8 @@ float spots(vec2 p, vec2 toGap, float sc, float rmin, float rmax, float soft, fl
   return acc;
 }
 
-/* dense pinholes where the canopy opens into the digits; existence per cell from the mask */
-float dspots(vec2 p, vec2 toMask, float sc, float seed, vec2 ax, float sel, float soft, float flut, float t){
+/* fine pinholes scattered over the wall, gathering where the canopy thins */
+float fspots(vec2 p, vec2 toWall, float sc, float seed, vec2 ax, float sel, float soft, float flut, float t, float base){
   vec2 q = p * sc;
   vec2 ci = floor(q), cf = fract(q);
   float acc = 0.;
@@ -240,17 +217,18 @@ float dspots(vec2 p, vec2 toMask, float sc, float seed, vec2 ax, float sel, floa
       vec2 o = vec2(float(i), float(j));
       vec2 c = ci + o;
       vec2 h = hash22(c + seed);
-      vec2 jit = (h - .5) * .86;
-      float md = texture2D(uMask, muv((c + .5 + jit) / sc + toMask)).r;
+      vec2 jit = (h - .5) * .62;           /* jitter + radius stay inside the 3x3 search: no clipped spots */
+      vec2 w = (c + .5 + jit) / sc + toWall;
+      float dn = base * (.3 + .7 * smoothstep(.28, .72, vnoise(w * 2.6 + seed))) + .3 * poolAt(w);
       float k = hash12(c * 1.37 + seed * 3.1);
-      if (k > smoothstep(.12, .60, md) * .9) continue;
+      if (k > dn) continue;
       float ph = k * 61.7;
       vec2 wob = vec2(n1(t * (1.1 + h.x) + ph), n1(t * (.9 + h.y) + ph + 17.)) * 2. - 1.;
       vec2 dv = o + .5 + jit + flut * .09 * wob - cf;
       float fl = n1(t * (.6 + 1.2 * h.y) + ph * 1.3);
       float opn = 1. - (.08 + .4 * flut) * smoothstep(.5, .92, fl) * step(.5, h.y);
-      float r = mix(.24, .62, h.y * h.y * h.y);
-      acc += spot(dv, ax, sel, r, min(soft * 1.7, .8)) * opn * (.38 + .62 * fract(k * 13.7 + h.x * 3.1)) * (.5 + .5 * smoothstep(.25, .8, md));
+      float r = mix(.22, .48, h.y * h.y * h.y);
+      acc += spot(dv, ax, sel, r, min(soft * 1.7, .8)) * opn * (.38 + .62 * fract(k * 13.7 + h.x * 3.1));
     }
   }
   return acc;
@@ -322,36 +300,30 @@ void main(){
   float soft = uAxis.w + .2 * uMisc.z;
   vec2 drift = vec2(t * .0009, t * .0004);
 
-  /* the written time sways and breathes with the mid canopy */
+  /* the sun's pool: where the canopy thins; it wanders a little with the wind */
   vec2 br = vec2(vnoise(p * 2.3 + vec2(t * .11, 1.3)), vnoise(p * 2.3 + vec2(4.7, -t * .09))) - .5;
   vec2 woff = uSway.zw * 1.2 + gv * .03 + br * .03 * uShad.w;
-  vec4 M = texture2D(uMask, muv(p + woff));
-  float m = smoothstep(.12, .80, M.r);
-  /* leaf clusters thin the opening unevenly, so the digits are only ever half there */
-  float er = vnoise(p * 3.1 + vec2(t * .015, 2.7)) * .65 + vnoise(p * 7.3 + 5.1) * .35;
-  m *= .55 + .45 * smoothstep(.25, .66, er);
-  float halo = M.g;
-  float zone = smoothstep(.04, .42, M.b);
+  float pool = poolAt(p + woff) * (.55 + .75 * vnoise(p * 1.6 + vec2(3.3, t * .006)));
 
-  /* far canopy: gaps + sparse pinholes, kept away from the digits' surroundings */
+  /* far canopy: gaps and pinholes, opening up around the pool */
   vec2 pf = p + sun * .10 + uSway.xy + gv * .016 + drift;
   float gapN = fbm(pf * .92 + vec2(3.1, 7.7)) + .05 * p.x + .03 * p.y;
-  float gap = smoothstep(.64, .82, gapN) * (.25 + 1.2 * open) * (1. - .5 * max(zone, halo));
-  float s1 = spots(pf, vec2(0.), 5.2, .31, .36, soft, 1., ax, sel, flut, t, open) * .8 * (1. - .85 * max(halo, .75 * zone));
+  float gap = smoothstep(.66 - .12 * pool, .84 - .10 * pool, gapN) * (.25 + 1.2 * open);
+  vec2 toW1 = -(sun * .10 + uSway.xy + drift);
+  float s1 = spots(pf, vec2(0.), toW1, 5.2, .31, .36, soft, 1., ax, sel, flut, t, open) * .8;
   vec2 pf2 = p + sun * .07 + uSway.xy * 1.45 + gv * .026 + drift * .7;
-  float s2 = spots(pf2, pf - pf2, 10.5, .31, .36, soft, 17., ax, sel * .97, flut, t, open) * (1. - .6 * max(halo, .45 * zone));
+  vec2 toW2 = -(sun * .07 + uSway.xy * 1.45 + drift * .7);
+  float s2 = spots(pf2, toW2 - toW1, toW2, 10.5, .31, .36, soft, 17., ax, sel * .97, flut, t, open);
   float far = gap + (1. - gap) * (s1 + .7 * s2);
 
-  /* the opening: many small pinhole images clustered inside the digits */
+  /* fine pinholes scattered everywhere, more of them in the pool */
   vec2 pd = p + sun * .05 + uSway.zw * .9 + gv * .02 + drift * .5;
-  float ds = .8 * dspots(pd, p - pd + woff, 23., 5., ax, sel, soft, flut, t);
-  float fillN = .6 * vnoise(pd * 9. + 3.) + .4 * vnoise(pd * 23. + 11.);
-  float fill = m * (.10 + .12 * smoothstep(.3, .85, fillN));
-  far += (ds + fill) * (1. - .45 * min(far, 1.));
+  float fs = .7 * fspots(pd, -(sun * .05 + uSway.zw * .9 + drift * .5), 21., 5., ax, sel, soft, flut, t, .08 + .25 * open);
+  far += fs * (1. - .45 * min(far, 1.));
 
   vec2 pm = p + sun * .05 + uSway.zw + gv * .03 + drift * .5;
   float mid = max(clusters(pm, 4.2, 3.7, flut, t), .9 * clusters(pm + vec2(.37, .11), 8.6, 11.3, flut, t));
-  mid *= (.55 + .45 * (1. - open)) * (1. - .4 * m);
+  mid *= (.55 + .45 * (1. - open)) * (1. - .3 * min(pool, 1.));
 
   /* near branches; their shadows stretch with a low sun */
   vec2 pn = p + uShad.xy;
@@ -382,14 +354,12 @@ void main(){
     nB = max(nB, segCov(pnB, J.zw, K.xy, mix(.0065, .003, (f0 + 1.) / 4.) * uBrSc.y, .016 * uShad.z));
   }
   nB = max(nB, segCov(pnB, uJB[2].xy, uJB[2].zw, .003 * uBrSc.y, .016 * uShad.z));
-  nA *= 1. - .12 * m;
-  nB *= 1. - .18 * m;
 
   float S = far * (1. - mid * .88) * (1. - nA * .9) * (1. - nB * .45);
   float tr = min(far, 1.) * (1. - mid) * max(nA * .9, nB * .3);
 
   float dith = (hash12(gl_FragCoord.xy + fract(t * 7.3) * 91.7) - .5) / 255.;
-  gl_FragColor = vec4(S * .5 + dith, tr + dith, halo, 1.);
+  gl_FragColor = vec4(S * .5 + dith, tr + dith, min(pool, 1.) * .5, 1.);
 }`;
 
 /* Composite: plaster, sky fill, sun of the hour, passing cloud, lens, grain. */
@@ -503,8 +473,8 @@ function program(vs, fs) {
   return { p, u: name => (name in cache ? cache[name] : (cache[name] = gl.getUniformLocation(p, name))) };
 }
 
-let progPlaster, progLight, progComp, progMote, progMix, triBuf, moteBuf;
-let lightFBO = null, plasterFBO = null, mixFBO = null, maskTex = [null, null];
+let progPlaster, progLight, progComp, progMote, triBuf, moteBuf;
+let lightFBO = null, plasterFBO = null;
 
 function texParams() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -529,7 +499,6 @@ function initGL() {
   progPlaster = program(VERT, FRAG_PLASTER);
   progLight = program(VERT, FRAG_LIGHT);
   progComp = program(VERT, FRAG_COMP);
-  progMix = program(VERT, FRAG_MIX);
   progMote = program(VERT_MOTE, FRAG_MOTE);
   triBuf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, triBuf);
@@ -537,14 +506,8 @@ function initGL() {
   moteBuf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, moteBuf);
   gl.bufferData(gl.ARRAY_BUFFER, moteData.byteLength, gl.DYNAMIC_DRAW);
-  for (let i = 0; i < 2; i++) {
-    maskTex[i] = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, maskTex[i]);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
-    texParams();
-  }
   gl.disable(gl.DEPTH_TEST);
-  lightFBO = plasterFBO = mixFBO = null;
+  lightFBO = plasterFBO = null;
   needsResize = true;
 }
 
@@ -556,85 +519,12 @@ function drawTri() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  The time, drawn as a mask                                         */
-/* ------------------------------------------------------------------ */
-
-const FONT_STACK = '"Avenir Next", "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif';
-const mcv = document.createElement('canvas');
-const mctx = mcv.getContext('2d');
-const MASK_H = 360;
-
-function drawMask(key) {
-  const mh = MASK_H, mw = Math.max(64, Math.min(1400, Math.round(MASK_H * cssW / cssH)));
-  if (mcv.width !== mw) mcv.width = mw;
-  if (mcv.height !== mh) mcv.height = mh;
-  const c = mctx;
-  c.setTransform(1, 0, 0, 1, 0, 0);
-  c.globalCompositeOperation = 'source-over';
-  c.filter = 'none';
-  c.fillStyle = '#000';
-  c.fillRect(0, 0, mw, mh);
-
-  /* measure at 100px, then scale: digits ~31% of the height, at most 84% of the width */
-  c.font = `600 100px ${FONT_STACK}`;
-  let adv = 0;
-  for (let d = 0; d < 10; d++) adv = Math.max(adv, c.measureText(String(d)).width);
-  const mt = c.measureText('0');
-  const asc = mt.actualBoundingBoxAscent || 72;
-  const colW = c.measureText(':').width;
-  const track = 4;
-  const colAdv = colW + 14;
-  const total100 = adv * 4 + colAdv + track * 3;
-  const fs = Math.min((0.31 * mh) / (asc / 100), (0.84 * mw) / (total100 / 100));
-  const k = fs / 100;
-  const baseline = 0.455 * mh + (asc * k) / 2;
-  let x = mw / 2 - (total100 * k) / 2;
-  const glyphs = [];
-  for (let i = 0; i < key.length; i++) {
-    const ch = key[i];
-    const w = ch === ':' ? colAdv * k : adv * k;
-    const cw = c.measureText(ch).width * k;
-    glyphs.push([ch, x + (w - cw) / 2]);
-    x += w + (ch === ':' ? 0 : track * k);
-  }
-  const paint = (style, blur, extra) => {
-    c.font = `600 ${fs}px ${FONT_STACK}`;
-    c.filter = blur > 0 ? `blur(${blur}px)` : 'none';
-    c.fillStyle = style; c.strokeStyle = style;
-    c.lineJoin = 'round'; c.lineWidth = extra;
-    for (const [ch, gx] of glyphs) {
-      c.fillText(ch, gx, baseline);
-      if (extra > 0) c.strokeText(ch, gx, baseline);
-    }
-  };
-  /* R: the letterform, slightly rounded and softened; G: a halo; B: a broad zone */
-  paint('rgb(255,0,0)', fs * 0.055, fs * 0.02);
-  c.globalCompositeOperation = 'lighter';
-  paint('rgb(0,255,0)', fs * 0.14, fs * 0.05);
-  paint('rgb(0,0,255)', fs * 0.34, fs * 0.12);   /* B: a broad zone kept clear of big gaps */
-  c.globalCompositeOperation = 'source-over';
-  c.filter = 'none';
-}
-function uploadMask(i, key) {
-  drawMask(key);
-  gl.bindTexture(gl.TEXTURE_2D, maskTex[i]);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mcv);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  if (!mixFBO || mixFBO.w !== mcv.width || mixFBO.h !== mcv.height) {
-    freeTarget(mixFBO);
-    mixFBO = makeTarget(mcv.width, mcv.height);
-  }
-  mixDirty = true;
-}
-
-/* ------------------------------------------------------------------ */
 /*  Sizing                                                            */
 /* ------------------------------------------------------------------ */
 
 let W = 1, H = 1, dpr = 1, cssW = 1, cssH = 1, layoutH = 1, lastCssW = -1;
 let halfW = 0.5, yBot = -0.5, needsResize = true;
-let plasterDirty = false, plasterTimer = 0, mixDirty = true;
+let plasterDirty = false, plasterTimer = 0;
 let quality = 1;
 
 function makeLightTarget() {
@@ -673,8 +563,6 @@ function resize() {
 
   makeLightTarget();
   layoutBranches();
-  uploadMask(0, shownKey);
-  if (trans.active) uploadMask(1, trans.to);
 
   if (!plasterFBO) plasterDirty = true;
   else if (changed) {
@@ -948,19 +836,34 @@ function updateSun(t, dt) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Minute change: a cloud passes                                     */
+/*  The sun's pool of light: a sundial without numerals                */
+/* ------------------------------------------------------------------ */
+/* Where the canopy thins the light gathers. Through the day that pool walks
+   across the wall: low on the left after sunrise, high in the middle at noon,
+   low on the right before sunset. At night the moon's pool is fainter.      */
+const SUNRISE = 5.6, SUNSET = 19.2;
+function poolOf(h) {
+  const day = (h - SUNRISE) / (SUNSET - SUNRISE);
+  let u, s, lift;
+  if (day >= 0 && day <= 1) { u = day; s = 1; lift = 0.40; }
+  else { u = ((((h - SUNSET) % 24) + 24) % 24) / (24 - (SUNSET - SUNRISE)); s = 0.5; lift = 0.20; }
+  const edge = Math.min(1, Math.min(u, 1 - u) / 0.07);
+  return { x: (-0.80 + 1.60 * u) * halfW, y: -0.22 + lift * Math.sin(Math.PI * u), r: 0.44, s: s * (0.35 + 0.65 * edge) };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Each minute a cloud passes over                                   */
 /* ------------------------------------------------------------------ */
 
 let shownKey = info.key;
 const trans = { active: false, t0: 0, to: '' };
 function transTiming() {
   return motion === 1
-    ? { down: 0.8, hold: 0.3, up: 1.2, lag: 0.35, depth: 0.74, x0: 0.55, x1: 1.45 }
-    : { down: 0.12, hold: 0.0, up: 0.25, lag: 0.0, depth: 0.2, x0: 0.0, x1: 0.25 };
+    ? { down: 1.4, hold: 0.4, up: 2.2, lag: 0.6, depth: 0.42 }
+    : { down: 0.3, hold: 0.0, up: 0.5, lag: 0.0, depth: 0.12 };
 }
 function startTransition(key) {
   trans.active = true; trans.t0 = clock; trans.to = key;
-  uploadMask(1, key);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1000,16 +903,14 @@ canvas.addEventListener('webglcontextrestored', () => {
   try { initGL(); lost = false; } catch (err) { console.warn(err); }
 });
 
-let lastDraw = -1e9, lastInfoAt = -1e9, shownDate = '';
+let lastDraw = -1e9, lastInfoAt = -1e9;
 function refreshInfo() {
   info = nowInfo();
   todL = lightAt(info.hour);
   fadeCol = applyWallCss(todL);
-  if (info.date !== shownDate) { shownDate = info.date; $date.textContent = info.date; }
   canvas.setAttribute('aria-label', info.key);
 }
 refreshInfo();
-setTimeout(() => $date.classList.add('on'), 900);
 
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1034,30 +935,13 @@ function frame(now) {
 
   /* minute change progress */
   const T = transTiming();
-  let tt = 1e4, xf = 0;
+  let tt = 1e4;
   if (trans.active) {
     tt = t - trans.t0;
-    xf = smooth(T.x0, T.x1, tt);
     if (tt > T.down + T.hold + T.up + T.lag + 0.1) {
       trans.active = false;
-      const tmp = maskTex[0]; maskTex[0] = maskTex[1]; maskTex[1] = tmp;
-      shownKey = trans.to; xf = 0; tt = 1e4; mixDirty = true;
-    } else mixDirty = true;
-  }
-
-  /* mask crossfade pass (only when something changed) */
-  if (mixDirty) {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, mixFBO.fb);
-    gl.viewport(0, 0, mixFBO.w, mixFBO.h);
-    gl.useProgram(progMix.p);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, maskTex[0]);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex[1]);
-    gl.uniform1i(progMix.u('uA'), 0);
-    gl.uniform1i(progMix.u('uB'), 1);
-    gl.uniform3f(progMix.u('uX'), xf, mixFBO.w / mixFBO.h, 0);
-    gl.uniform2f(progMix.u('uRes'), mixFBO.w, mixFBO.h);
-    drawTri();
-    mixDirty = false;
+      shownKey = trans.to; tt = 1e4;
+    }
   }
 
   const wt = motion === 1 ? t : t * 0.35;     /* reduced motion: the wind itself slows */
@@ -1084,14 +968,13 @@ function frame(now) {
   const P = progLight;
   const ls = lightFBO.h / cssH;
   gl.useProgram(P.p);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, mixFBO.tex);
-  gl.uniform1i(P.u('uMask'), 2);
   gl.uniform4f(P.u('uView'), 0.5 * lightFBO.w, (cssH - 0.5 * layoutH) * ls, layoutH * ls, wt);
   gl.uniform4f(P.u('uSunG'), sx, sy, wind.gustX, wind.gustAmp);
   gl.uniform4f(P.u('uSway'), wind.far.x, wind.farY.x, wind.mid.x, wind.midY.x);
   gl.uniform4f(P.u('uMisc'), wind.gustDir, 0.22 * motion, cloud, L.open);
   gl.uniform4f(P.u('uAxis'), axx, axy, sel, L.soft);
-  gl.uniform4f(P.u('uMaskM'), halfW, yBot, 1 / (2 * halfW), 1 / (0.5 - yBot));
+  const pool = poolOf(info.hour);
+  gl.uniform4f(P.u('uPool'), pool.x, pool.y, pool.r, pool.s);
   gl.uniform4f(P.u('uShad'), axx * throwLen, axy * throwLen, (0.8 + 0.7 * (L.el - 1)) * (1 + 5 * (L.soft - 0.25)), motion === 1 ? 1 : 0.4);
   gl.uniform2f(P.u('uBrSc'), branchA.sc, branchB.sc);
   gl.uniform4fv(P.u('uLA'), leafA);
