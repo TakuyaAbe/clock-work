@@ -240,16 +240,16 @@ float dspots(vec2 p, vec2 toMask, float sc, float seed, vec2 ax, float sel, floa
       vec2 o = vec2(float(i), float(j));
       vec2 c = ci + o;
       vec2 h = hash22(c + seed);
-      vec2 jit = (h - .5) * .62;
+      vec2 jit = (h - .5) * .86;
       float md = texture2D(uMask, muv((c + .5 + jit) / sc + toMask)).r;
       float k = hash12(c * 1.37 + seed * 3.1);
-      if (k > smoothstep(.10, .55, md) * .96) continue;
+      if (k > smoothstep(.12, .60, md) * .9) continue;
       float ph = k * 61.7;
       vec2 wob = vec2(n1(t * (1.1 + h.x) + ph), n1(t * (.9 + h.y) + ph + 17.)) * 2. - 1.;
       vec2 dv = o + .5 + jit + flut * .09 * wob - cf;
       float fl = n1(t * (.6 + 1.2 * h.y) + ph * 1.3);
       float opn = 1. - (.08 + .4 * flut) * smoothstep(.5, .92, fl) * step(.5, h.y);
-      float r = mix(.42, .66, h.y * h.y);
+      float r = mix(.24, .62, h.y * h.y * h.y);
       acc += spot(dv, ax, sel, r, min(soft * 1.7, .8)) * opn * (.38 + .62 * fract(k * 13.7 + h.x * 3.1)) * (.5 + .5 * smoothstep(.25, .8, md));
     }
   }
@@ -324,31 +324,34 @@ void main(){
 
   /* the written time sways and breathes with the mid canopy */
   vec2 br = vec2(vnoise(p * 2.3 + vec2(t * .11, 1.3)), vnoise(p * 2.3 + vec2(4.7, -t * .09))) - .5;
-  vec2 woff = uSway.zw * .9 + gv * .02 + br * .014 * uShad.w;
+  vec2 woff = uSway.zw * 1.2 + gv * .03 + br * .03 * uShad.w;
   vec4 M = texture2D(uMask, muv(p + woff));
-  float m = smoothstep(.10, .75, M.r);
+  float m = smoothstep(.12, .80, M.r);
+  /* leaf clusters thin the opening unevenly, so the digits are only ever half there */
+  float er = vnoise(p * 3.1 + vec2(t * .015, 2.7)) * .65 + vnoise(p * 7.3 + 5.1) * .35;
+  m *= .55 + .45 * smoothstep(.25, .66, er);
   float halo = M.g;
   float zone = smoothstep(.04, .42, M.b);
 
   /* far canopy: gaps + sparse pinholes, kept away from the digits' surroundings */
   vec2 pf = p + sun * .10 + uSway.xy + gv * .016 + drift;
-  float gapN = fbm(pf * .92 + vec2(3.1, 7.7)) + .10 * p.x + .03 * p.y;
-  float gap = smoothstep(.64, .82, gapN) * (.25 + 1.2 * open) * (1. - .92 * max(zone, halo));
-  float s1 = spots(pf, vec2(0.), 5.2, .31, .36, soft, 1., ax, sel, flut, t, open) * .8 * (1. - .95 * max(halo, .8 * zone));
+  float gapN = fbm(pf * .92 + vec2(3.1, 7.7)) + .05 * p.x + .03 * p.y;
+  float gap = smoothstep(.64, .82, gapN) * (.25 + 1.2 * open) * (1. - .5 * max(zone, halo));
+  float s1 = spots(pf, vec2(0.), 5.2, .31, .36, soft, 1., ax, sel, flut, t, open) * .8 * (1. - .85 * max(halo, .75 * zone));
   vec2 pf2 = p + sun * .07 + uSway.xy * 1.45 + gv * .026 + drift * .7;
-  float s2 = spots(pf2, pf - pf2, 10.5, .31, .36, soft, 17., ax, sel * .97, flut, t, open) * (1. - .9 * max(halo, .6 * zone));
+  float s2 = spots(pf2, pf - pf2, 10.5, .31, .36, soft, 17., ax, sel * .97, flut, t, open) * (1. - .6 * max(halo, .45 * zone));
   float far = gap + (1. - gap) * (s1 + .7 * s2);
 
   /* the opening: many small pinhole images clustered inside the digits */
   vec2 pd = p + sun * .05 + uSway.zw * .9 + gv * .02 + drift * .5;
-  float ds = .85 * dspots(pd, p - pd + woff, 37., 5., ax, sel, soft, flut, t);
+  float ds = .8 * dspots(pd, p - pd + woff, 23., 5., ax, sel, soft, flut, t);
   float fillN = .6 * vnoise(pd * 9. + 3.) + .4 * vnoise(pd * 23. + 11.);
-  float fill = m * (.26 + .30 * smoothstep(.3, .85, fillN));
+  float fill = m * (.10 + .12 * smoothstep(.3, .85, fillN));
   far += (ds + fill) * (1. - .45 * min(far, 1.));
 
   vec2 pm = p + sun * .05 + uSway.zw + gv * .03 + drift * .5;
   float mid = max(clusters(pm, 4.2, 3.7, flut, t), .9 * clusters(pm + vec2(.37, .11), 8.6, 11.3, flut, t));
-  mid *= (.55 + .45 * (1. - open)) * (1. - .95 * max(halo, m));
+  mid *= (.55 + .45 * (1. - open)) * (1. - .4 * m);
 
   /* near branches; their shadows stretch with a low sun */
   vec2 pn = p + uShad.xy;
@@ -379,8 +382,8 @@ void main(){
     nB = max(nB, segCov(pnB, J.zw, K.xy, mix(.0065, .003, (f0 + 1.) / 4.) * uBrSc.y, .016 * uShad.z));
   }
   nB = max(nB, segCov(pnB, uJB[2].xy, uJB[2].zw, .003 * uBrSc.y, .016 * uShad.z));
-  nA *= 1. - .62 * m;
-  nB *= 1. - .70 * m;
+  nA *= 1. - .12 * m;
+  nB *= 1. - .18 * m;
 
   float S = far * (1. - mid * .88) * (1. - nA * .9) * (1. - nB * .45);
   float tr = min(far, 1.) * (1. - mid) * max(nA * .9, nB * .3);
@@ -445,7 +448,7 @@ void main(){
 
   vec3 col = alb * (amb + sunP * direct);
   col += alb * vec3(.34, .40, .07) * tr * .16 * dot(sunC, vec3(.33));
-  col += alb * sunC * uGlow.x * halo;
+  col += alb * sunC * uGlow.x * halo * .2;
 
   col = vec3(1.) - exp(-col * 1.12);
   col = pow(col, vec3(1. / 2.2));
@@ -573,7 +576,7 @@ function drawMask(key) {
   c.fillRect(0, 0, mw, mh);
 
   /* measure at 100px, then scale: digits ~31% of the height, at most 84% of the width */
-  c.font = `700 100px ${FONT_STACK}`;
+  c.font = `600 100px ${FONT_STACK}`;
   let adv = 0;
   for (let d = 0; d < 10; d++) adv = Math.max(adv, c.measureText(String(d)).width);
   const mt = c.measureText('0');
@@ -595,7 +598,7 @@ function drawMask(key) {
     x += w + (ch === ':' ? 0 : track * k);
   }
   const paint = (style, blur, extra) => {
-    c.font = `700 ${fs}px ${FONT_STACK}`;
+    c.font = `600 ${fs}px ${FONT_STACK}`;
     c.filter = blur > 0 ? `blur(${blur}px)` : 'none';
     c.fillStyle = style; c.strokeStyle = style;
     c.lineJoin = 'round'; c.lineWidth = extra;
@@ -605,9 +608,9 @@ function drawMask(key) {
     }
   };
   /* R: the letterform, slightly rounded and softened; G: a halo; B: a broad zone */
-  paint('rgb(255,0,0)', fs * 0.022, fs * 0.03);
+  paint('rgb(255,0,0)', fs * 0.055, fs * 0.02);
   c.globalCompositeOperation = 'lighter';
-  paint('rgb(0,255,0)', fs * 0.10, fs * 0.05);
+  paint('rgb(0,255,0)', fs * 0.14, fs * 0.05);
   paint('rgb(0,0,255)', fs * 0.34, fs * 0.12);   /* B: a broad zone kept clear of big gaps */
   c.globalCompositeOperation = 'source-over';
   c.filter = 'none';

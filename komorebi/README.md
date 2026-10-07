@@ -2,7 +2,7 @@
 
 A Chrome extension that replaces the new tab page with the time written in sunlight through leaves on a plaster wall.
 
-Inside the digits the canopy opens, so pinhole images of the sun cluster there; the rest of the wall stays in leaf shade with only a few stray spots. The digits sway and breathe with the wind. On each new minute a small cloud passes: the light dims, the leaves rearrange into the new time, and the sun comes back. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
+The time is only half there. Where the digits fall, the canopy opens a little more, so ordinary pinhole images of the sun gather a little more densely; leaf shadows and stray spots keep drifting across them. At a glance it is dappled light on a wall, and the time appears when you look for it. The digits sway and breathe with the wind. On each new minute a small cloud passes: the light dims, the leaves rearrange into the new time, and the sun comes back. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
 
 ![screenshot](store/screenshot_1280x800_a.png)
 
