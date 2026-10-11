@@ -309,11 +309,10 @@ float nearVis(){
   vec2 p = (gl_FragCoord.xy - uViewC.xy) / uViewC.z;
   vec2 uv = (p - uRectN.xy) * uRectN.zw;
   mat2 E = mat2(uSunN.xy * uSunN.z, vec2(-uSunN.y, uSunN.x));
-  float rot = hash12(gl_FragCoord.xy * .913) * 6.2832;
   vec2 sc = uRectN.zw;
-  float hd = 0.;
-  for (int i = 0; i < 10; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 10., rot) * uRadN.x * sc).r;
-  return 1. - hd / 10.;
+  float hd = 0.;             /* a fixed tap pattern: thin moving lines don't sparkle across a per-pixel noise */
+  for (int i = 0; i < 16; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 16., .7) * uRadN.x * sc).r;
+  return 1. - hd / 16.;
 }
 void main(){
   vec2 uv = gl_FragCoord.xy / uRes;
@@ -321,10 +320,10 @@ void main(){
 
   /* light splits a little at its edges: red one way, blue the other (along the light, and outward like a lens) */
   vec2 ca = fromC * uFx.z + uFx.xy;
-  float Sr = texture2D(uLight, uv + ca).r * 2.;
+  float Sr = texture2D(uLight, uv - ca).r * 2.;   /* red lands outward */
   vec3  Lg = texture2D(uLight, uv).rgb;
   float Sg = Lg.r * 2.;
-  float Sb = texture2D(uLight, uv - ca).r * 2.;
+  float Sb = texture2D(uLight, uv + ca).r * 2.;
   /* the split belongs to bright light: where it is dim the channels come back together */
   float fw = smoothstep(.5, 1., max(max(Sr, Sg), Sb));
   vec3 S = min(mix(vec3(Sg), vec3(Sr, Sg, Sb), fw), 1.45) * Lg.g * nearVis();   /* g: the branches' clean shadows */
@@ -998,7 +997,7 @@ let VINE = null;
 function buildVine() {
   const r = mulberry(909);
   /* the vine passes well below the clock, beyond the reach of the hour hand */
-  const pts = [[-halfW - 0.08, -0.40], [-halfW * 0.5, -0.31], [PIVOT.x - 0.04, PIVOT.y - 0.26], [halfW * 0.42, -0.21], [halfW + 0.08, -0.29]];
+  const pts = [[-halfW - 0.08, -0.40], [-halfW * 0.5, -0.31], [PIVOT.x - 0.04, PIVOT.y - 0.30], [halfW * 0.42, -0.21], [halfW + 0.08, -0.29]];
   let uk = 0.5, best = 1e9;
   for (let i = 0; i <= 400; i++) {
     const q = catmull(pts, i / 400), d = Math.hypot(q[0] - PIVOT.x + 0.02, q[1] - PIVOT.y);
@@ -1042,7 +1041,7 @@ function emitVine(t) {
       const s = 0.35 + 0.65 * (k + 1) / tw.nl;
       const p = [b[0] + (e[0] - b[0]) * s, b[1] + (e[1] - b[1]) * s, b[2] + 0.012 * s];
       const side = k === tw.nl - 1 ? 0 : (k % 2 ? 1 : -1) * tw.side;
-      const ll = (tw.big ? 0.052 : 0.040) * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));   /* smaller than the hour hand's leaves */
+      const ll = (tw.big ? 0.036 : 0.028) * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));   /* smaller than the hour hand's leaves */
       emitLeaf3D(p, a + side * 0.72 + fl * 0.12 * sn1(t * 1.25 + tw.ph + k), 0.25 * (side || 0.6), ll, tw.big ? 1.1 : 0.85,
                  0.3 * (side || 1) + fl * 0.55 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96, tw.ph * 0.173 + k * 0.29);
     }
@@ -1057,14 +1056,14 @@ function emitTendril(frac, len, t, px) {
   for (let i = 0; i < straight; i++) {
     const f = (i + 1) / straight, w = len * (0.07 * Math.sin(f * 3.1) + 0.02 * Math.sin(f * 6.5 + 1.3));
     const q = [PIVOT.x + dx * L0 * (i + 1) + nx * w, PIVOT.y + dy * L0 * (i + 1) + ny * w, Z0 + 0.018 * f];
-    emitSeg(p, q, Math.max(0.0012 - 0.0003 * f, 0.9 * px), 1); p = q;
+    emitSeg(p, q, Math.max(0.0012 - 0.0003 * f, 1.0 * px), 1); p = q;
   }
   /* the curl: short steps turning ever tighter */
   let a = Math.atan2(dy, dx), step = len * 0.05;
-  for (let i = 0; i < 20; i++) {
-    a += 0.18 + 0.03 * i; step *= 0.94;
+  for (let i = 0; i < 16; i++) {
+    a += 0.16 + 0.016 * i; step *= 0.955;      /* an open curl, not a tight knot */
     const q = [p[0] + Math.cos(a) * step, p[1] + Math.sin(a) * step, p[2] + 0.001];
-    emitSeg(p, q, Math.max(0.0009, 0.8 * px), 1); p = q;
+    emitSeg(p, q, Math.max(0.0009, 0.9 * px), 1); p = q;
   }
 }
 
@@ -1172,7 +1171,9 @@ function handFracs() {
   const sec = d.getSeconds() + d.getMilliseconds() / 1000;      /* the tendril always follows the real seconds */
   return { h: ((hh % 12) + mm / 60 + ss / 3600) / 12, m: (mm + ss / 60) / 60, s: sec / 60 };
 }
-function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale) {
+function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale, flat) {
+  /* flat: how squarely the leaves face the wall (the hour hand's broad leaves must read as broad at any sun) */
+  const tilt = flat ? 0.12 : 0.28, turn = flat ? 0.12 : 0.35, flutterTurn = flat ? 0.3 : 0.55;
   const th = frac * Math.PI * 2 + sway;
   const dx = Math.sin(th), dy = Math.cos(th), nx = dy, ny = -dx;     /* 12 o'clock is up, clockwise */
   const K = [PIVOT.x, PIVOT.y, Z0];
@@ -1188,13 +1189,13 @@ function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale)
     const ll = ll0 * scale, base = at(sAt), T = tan(sAt), ph = seed + i * 7.31;
     let a = Math.atan2(T[1], T[0]) + side * off;
     a += fl * (0.14 * sn1(t * (1.1 + i * 0.21) + ph) + 0.04 * sn1(t * 1.9 + ph * 2.3));
-    const tz = 0.28 * (side || 0.6) + 0.1 * sn1(t * 0.4 + ph);      /* tips lean off the wall, or toward it */
+    const tz = tilt * (side || 0.6) + 0.1 * sn1(t * 0.4 + ph);      /* tips lean off the wall, or toward it */
     let Ld = [Math.cos(a), Math.sin(a), tz];
     const n0 = Math.hypot(Ld[0], Ld[1], Ld[2]); Ld = Ld.map(x => x / n0);
     /* the blade faces the wall, turned about its midrib by the breeze */
     let nr = [-Ld[2] * Ld[0], -Ld[2] * Ld[1], 1 - Ld[2] * Ld[2]];
     const nn = Math.hypot(nr[0], nr[1], nr[2]) || 1; nr = nr.map(x => x / nn);
-    nr = rotAbout(nr, Ld, 0.35 * (side || 1) + fl * 0.55 * sn1(t * (0.6 + i * 0.13) + ph * 1.7) + 0.2 * sn1(t * 0.2 + ph));
+    nr = rotAbout(nr, Ld, turn * (side || 1) + fl * flutterTurn * sn1(t * (0.6 + i * 0.13) + ph * 1.7) + 0.2 * sn1(t * 0.2 + ph));
     const Wd = [Ld[1] * nr[2] - Ld[2] * nr[1], Ld[2] * nr[0] - Ld[0] * nr[2], Ld[0] * nr[1] - Ld[1] * nr[0]];
     const hw = ll * 0.30 * wf;
     emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), 0.96, 0.22 + 0.01 * i);   /* a shape with a pointed tip */
@@ -1318,9 +1319,9 @@ function frame(now) {
   const Rh = R * 0.7;                          /* the sprig is smaller than the clearing it sits in */
   const fr = handFracs();
   const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
-  emitHand(fr.h, Rh * 0.62, 0.05, 0.010, 0.0040, 0.0026, HOUR_LEAVES, wt, sw * 0.8, 3.1, Rh / 0.31);
+  emitHand(fr.h, Rh * 0.62, 0.05, 0.010, 0.0040, 0.0026, HOUR_LEAVES, wt, sw * 0.8, 3.1, Rh / 0.31, true);
   emitHand(fr.m, Rh, -0.035, 0.016, 0.0026, 0.0012, MIN_LEAVES, wt, sw, 11.7, Rh / 0.31);
-  emitSeg([PIVOT.x, PIVOT.y, 0], [PIVOT.x, PIVOT.y, Z0], 0.0038, 1);    /* the short stem: its shadow is only a small knot */
+  emitSeg([PIVOT.x, PIVOT.y, 0], [PIVOT.x, PIVOT.y, Z0], 0.0025, 1);    /* the short stem: its shadow is only a small knot */
   emitTendril(fr.s, Rh * 1.12, wt, (0.5 - yBot) / H);
   emitVine(wt);
   const handQ = nearQ;
@@ -1431,7 +1432,7 @@ function frame(now) {
   gl.uniform2f(C.u('uCloud2'), T.depth, T.lag);
   gl.uniform2f(C.u('uRelD'), sd[0], sd[1]);
   const fs = smooth(0.45, 0.95, L.si) * 0.9 + 0.1;   /* moonlight hardly splits */
-  gl.uniform4f(C.u('uFx'), sd[0] * 0.0016 * fs, sd[1] * 0.0016 * fs * W / H, 0.002 * fs, 0.22);
+  gl.uniform4f(C.u('uFx'), sd[0] * 0.0016 * fs, sd[1] * 0.0016 * fs * W / H, 0.005 * fs, 0.22);
   const fpx = (0.5 - yBot) / H;                  /* one device pixel, in wall units */
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, nearT.tex);
   gl.uniform1i(C.u('uNear'), 2);
