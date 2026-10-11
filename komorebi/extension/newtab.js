@@ -914,7 +914,7 @@ function buildCanopy() {
     }
     return [start, leaves.length - start];
   };
-  canMid = layer(0.9, 1.7, 0.30, 0.060, 0.100, 0.07, 10, 0.88);
+  canMid = layer(1.9, 3.1, 0.30, 0.060, 0.100, 0.07, 10, 0.88);
   /* far: an almost closed roof of leaves; light comes through its gaps. Each gap
      is a few overlapping lobes; most are small, a few are wide.             */
   const fStart = leaves.length;
@@ -939,7 +939,7 @@ function buildCanopy() {
 }
 
 /* Things close to the wall are posed every frame. */
-const NEAR_MAX = 440;
+const NEAR_MAX = 720;
 const nearData = new Float32Array(NEAR_MAX * 4 * FPV);
 let nearQ = 0, kNow = [0, 0];
 const proj = a => [a[0] - a[2] * kNow[0], a[1] - a[2] * kNow[1]];
@@ -1089,10 +1089,10 @@ function buildMoreBranches() {
   const r = mulberry(31337);
   MORE = [];
   const hw = halfW, yb = yBot, R = Math.min(0.31, halfW * 0.78);
-  const make = (x, y, ang, z, ch) => {
+  const make = (x, y, ang, z, ch, ls = 1) => {          /* ls: a longer branch, as leafy along its length */
     const nSeg = 5 + Math.floor(r() * 3), segs = [], leaves = [];
-    for (let i = 0; i < nSeg; i++) segs.push({ len: (0.05 + 0.05 * r()) * (1 - i / (nSeg + 3)), curve: (r() - 0.5) * 0.45 });
-    const nl = 8 + Math.floor(r() * 8);
+    for (let i = 0; i < nSeg; i++) segs.push({ len: (0.05 + 0.05 * r()) * (1 - i / (nSeg + 3)) * ls, curve: (r() - 0.5) * 0.45 });
+    const nl = Math.round((8 + Math.floor(r() * 8)) * ls);
     for (let k = 0; k < nl; k++) leaves.push({ s: 0.15 + 0.85 * (k + r() * 0.8) / nl, side: k % 2 ? 1 : -1, off: 0.45 + 0.5 * r(),
       len: (0.042 + 0.034 * r()) * (z > 1.0 ? 1.3 : 1.12), wf: 0.85 + 0.3 * r(), ph: r() * 90, tz: (r() - 0.5) * 0.6 });
     return { x, y, ang, z, ch, segs, leaves, flex: 0.6 + 0.6 * r(), ph: r() * 100 };
@@ -1120,6 +1120,16 @@ function buildMoreBranches() {
     }, R * 1.4);
   }
   for (let i = 0; i < 6; i++) place(() => make((r() * 2 - 1) * hw * 1.05, yb + r() * (0.55 - yb), r() * 6.2832, 1.25 + 0.75 * r(), 2), R * 1.1);
+  /* each corner: a nearer branch long enough to reach the light, and a farther one */
+  for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const cx = sx * (hw + 0.03), cy = sy > 0 ? 0.53 : yb - 0.03;
+    const inward = Math.atan2(PIVOT.y - cy, PIVOT.x - cx);
+    for (const ch of [1, 2]) place(() => {
+      const slide = (r() - 0.3) * 0.18, alongX = r() < 0.5;
+      return make(cx - (alongX ? sx * slide : 0), cy - (alongX ? 0 : sy * slide), inward + (r() - 0.5) * 0.9,
+                  ch === 1 ? 0.6 + 0.35 * r() : 1.3 + 0.6 * r(), ch, ch === 1 ? 1.7 : 1.2);
+    }, ch === 1 ? R * 1.5 : R * 1.2);
+  }
 }
 function emitMore(B, t, aK) {
   const fl = flutterAt(B.x);
@@ -1422,7 +1432,7 @@ function frame(now) {
   gl.uniform4f(P.u('uRect'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
   gl.uniform4f(P.u('uSun'), sd[0], sd[1], 1 / sz, 0);
   const lpx = (0.5 - yBot) / lightFBO.h;
-  const rMid = penum(1.3), rFar = penum(4.4);
+  const rMid = penum(2.5), rFar = penum(4.4);
   const rFb = Math.hypot(penum(1.6), lens), rNb = Math.hypot(penum(0.75), lens);
   gl.uniform4f(P.u('uRad'), rNb, rFb, rMid, rFar);
   const tpu = canT.h / occRect[3];
