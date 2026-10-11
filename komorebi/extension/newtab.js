@@ -1048,23 +1048,17 @@ function emitBearer(t) {
   }
 }
 
-/* the second hand: a tendril, the thinnest thing on the wall, curling at its tip */
-function emitTendril(frac, len, t, px) {
-  const th = frac * Math.PI * 2 + 0.01 * sn1(t * 0.6 + 4.2);
-  const dx = Math.sin(th), dy = Math.cos(th), nx = dy, ny = -dx;
+/* the second hand: the thinnest bare twig, a little crooked at its nodes */
+const SEC_KINKS = [0.05, -0.07, 0.04, -0.05, 0.06, -0.03];
+function emitSecondTwig(frac, len, t, px) {
+  let a = frac * Math.PI * 2 + 0.01 * sn1(t * 0.6 + 4.2);
   let p = [PIVOT.x, PIVOT.y, Z0];
-  const straight = 8, L0 = len * 0.84 / straight;
-  for (let i = 0; i < straight; i++) {
-    const f = (i + 1) / straight, w = len * (0.07 * Math.sin(f * 3.1) + 0.02 * Math.sin(f * 6.5 + 1.3));
-    const q = [PIVOT.x + dx * L0 * (i + 1) + nx * w, PIVOT.y + dy * L0 * (i + 1) + ny * w, Z0 + 0.018 * f];
-    emitSeg(p, q, Math.max(0.0012 - 0.0003 * f, 1.0 * px), 1); p = q;
-  }
-  /* the curl: short steps turning ever tighter */
-  let a = Math.atan2(dy, dx), step = len * 0.05;
-  for (let i = 0; i < 16; i++) {
-    a += 0.16 + 0.016 * i; step *= 0.955;      /* an open curl, not a tight knot */
-    const q = [p[0] + Math.cos(a) * step, p[1] + Math.sin(a) * step, p[2] + 0.001];
-    emitSeg(p, q, Math.max(0.0009, 0.9 * px), 1); p = q;
+  const n = SEC_KINKS.length, L0 = len / n;
+  for (let i = 0; i < n; i++) {
+    const f = (i + 1) / n;
+    const d = a + SEC_KINKS[i];                         /* each node turns it a few degrees */
+    const q = [p[0] + Math.sin(d) * L0, p[1] + Math.cos(d) * L0, Z0 + 0.016 * f];
+    emitSeg(p, q, Math.max(0.0013 - 0.0005 * f, 1.0 * px), 1); p = q;
   }
 }
 
@@ -1174,7 +1168,7 @@ function handFracs() {
   let hh, mm, ss;
   if (debugMin !== null) { hh = Math.floor(debugMin / 60); mm = debugMin % 60; ss = 0; }
   else { hh = d.getHours(); mm = d.getMinutes(); ss = d.getSeconds() + d.getMilliseconds() / 1000; }
-  const sec = d.getSeconds() + d.getMilliseconds() / 1000;      /* the tendril always follows the real seconds */
+  const sec = d.getSeconds() + d.getMilliseconds() / 1000;      /* the second hand always follows the real seconds */
   return { h: ((hh % 12) + mm / 60 + ss / 3600) / 12, m: (mm + ss / 60) / 60, s: sec / 60 };
 }
 function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale, flat) {
@@ -1332,8 +1326,8 @@ function frame(now) {
   const fr = handFracs();
   const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
   emitHand(fr.h, Rh * 0.62, 0.05, 0.010, 0.0040, 0.0026, HOUR_LEAVES, wt, sw * 0.8, 3.1, Rh / 0.31, true);
-  emitHand(fr.m, Rh, -0.035, 0.016, 0.0026, 0.0012, MIN_LEAVES, wt, sw, 11.7, Rh / 0.31);
-  emitTendril(fr.s, Rh * 1.12, wt, (0.5 - yBot) / H);
+  emitHand(fr.m, Rh, -0.035, 0.016, 0.0034, 0.0018, MIN_LEAVES, wt, sw, 11.7, Rh / 0.31);
+  emitSecondTwig(fr.s, Rh * 1.1, wt, (0.5 - yBot) / H);
   emitBearer(wt);
   const handQ = nearQ;
   poseBranch(branchA, wt, 0, 0, leafA, leafWA, jointA);
