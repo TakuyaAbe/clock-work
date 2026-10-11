@@ -1515,7 +1515,7 @@ function setupDebugBar() {
   if (!dbg.on) return;
   const st = document.createElement('style');
   st.textContent = `
-#kc-dbg{position:fixed;left:16px;right:16px;bottom:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;
+#kc-dbg{position:fixed;left:16px;right:52px;bottom:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;
   background:rgba(20,22,26,.72);color:#eee;font:12px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
   border-radius:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:10;user-select:none}
 #kc-dbg button,#kc-dbg select{background:rgba(255,255,255,.12);color:#eee;border:1px solid rgba(255,255,255,.2);border-radius:6px;
@@ -1580,14 +1580,26 @@ function updateDebugBar() {
   dbgEls.play.textContent = dbg.playing ? '❚❚' : '▶';
   dbgEls.seed.textContent = 'seed ' + sceneSeed;
 }
+/* the faint ring in the lower right (aria-label "playground") and Shift+D open and close the bar */
+const pgBtn = document.getElementById('pg');
+function setDebug(on) {
+  dbg.on = on;
+  setupDebugBar();
+  if (pgBtn) pgBtn.setAttribute('aria-expanded', String(dbg.on));
+}
+if (pgBtn) {
+  pgBtn.addEventListener('click', () => setDebug(!dbg.on));
+  pgBtn.addEventListener('pointerdown', e => e.stopPropagation());
+}
 window.addEventListener('keydown', e => {
-  if (e.shiftKey && (e.key === 'D' || e.key === 'd')) { dbg.on = !dbg.on; setupDebugBar(); }
+  if (e.shiftKey && (e.key === 'D' || e.key === 'd')) setDebug(!dbg.on);
 });
 window.addEventListener('hashchange', () => {
-  if (dbg.on) setupDebugBar();
+  if (dbg.on) setDebug(true);
   const n = hashSeed();
   if (n !== null && n !== sceneSeed) reseed(n);
 });
+if (pgBtn) pgBtn.setAttribute('aria-expanded', String(dbg.on));
 function reseed(n) {
   sceneSeed = n;
   sceneFlip = n !== 0 && seeded(5)() < 0.5;
