@@ -7,13 +7,17 @@ const canvas = document.getElementById('c');
 const rootStyle = document.documentElement.style;
 
 /* ------------------------------------------------------------------ */
-/*  Time source (with #t=HH:MM debug hook)                            */
+/*  Time source (with #t=HH:MM and #debug hooks)                      */
 /* ------------------------------------------------------------------ */
 
+/* dbg.minutes, when set by the debug sequence bar, replaces the clock: minutes since midnight, fractional */
+const dbg = { on: false, minutes: null, playing: false, speed: 60 };
 let debugMin = null;
 function readHash() {
-  const m = /^#t=(\d{1,2}):(\d{2})$/.exec(location.hash || '');
+  const h = location.hash || '';
+  const m = /t=(\d{1,2}):(\d{2})/.exec(h);
   debugMin = m ? (clampI(+m[1], 0, 23) * 60 + clampI(+m[2], 0, 59)) : null;
+  if (/debug/.test(h)) dbg.on = true;
 }
 function clampI(v, a, b) { return Math.min(b, Math.max(a, v | 0)); }
 readHash();
@@ -24,7 +28,10 @@ const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function nowInfo() {
   const d = new Date();
   let hh, mm, hour;
-  if (debugMin !== null) {
+  if (dbg.minutes !== null) {
+    const M = ((dbg.minutes % 1440) + 1440) % 1440;
+    hh = Math.floor(M / 60); mm = Math.floor(M % 60); hour = M / 60;
+  } else if (debugMin !== null) {
     hh = Math.floor(debugMin / 60); mm = debugMin % 60; hour = hh + mm / 60;
   } else {
     hh = d.getHours(); mm = d.getMinutes(); hour = hh + mm / 60 + d.getSeconds() / 3600;
@@ -550,7 +557,7 @@ function resize() {
 
   makeLightTarget();
   layoutBranches();
-  buildVine();
+  buildBearer();
   buildMoreBranches();
   buildCanopy();
 
@@ -984,69 +991,63 @@ function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity, shape) {
   emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), opacity, shape);
 }
 
-/* A vine climbs across the wall a few centimetres out from it. The clock's
-   sprig grows from one of its nodes; its other side twigs look much the same,
-   so the time hides among them.                                              */
-function catmull(P, u) {
-  const n = P.length - 1, f = Math.min(n - 1e-6, Math.max(0, u) * n), i = Math.floor(f), t = f - i;
-  const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(n, i + 2)];
-  const t2 = t * t, t3 = t2 * t;
-  return [0, 1].map(j => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3));
-}
-let VINE = null;
-function buildVine() {
+/* The clock grows at the tip of a thin branch that reaches in from the lower
+   left, close to the wall. The branch's side twigs look much like the hands,
+   so the time hides among them; only the three shoots at the tip keep time. */
+let BEARER = null;
+function buildBearer() {
   const r = mulberry(909);
-  /* the vine passes well below the clock, beyond the reach of the hour hand */
-  const pts = [[-halfW - 0.08, -0.40], [-halfW * 0.5, -0.31], [PIVOT.x - 0.04, PIVOT.y - 0.30], [halfW * 0.42, -0.21], [halfW + 0.08, -0.29]];
-  let uk = 0.5, best = 1e9;
-  for (let i = 0; i <= 400; i++) {
-    const q = catmull(pts, i / 400), d = Math.hypot(q[0] - PIVOT.x + 0.02, q[1] - PIVOT.y);
-    if (d < best) { best = d; uk = i / 400; }
-  }
-  const twigs = [0.07, 0.17, 0.29, 0.38, 0.64, 0.73, 0.83, 0.93].map(u => ({
-    u, ang: (r() < 0.5 ? -1 : 1) * (0.5 + 1.1 * r()), len: 0.07 + 0.12 * r(), nl: 3 + Math.floor(r() * 3),
-    side: r() < 0.5 ? -1 : 1, ph: r() * 50, big: r() < 0.35 }));
-  /* side twigs close to the clock stay small and plain, so the hands can be traced back to their knot */
   const Rh = Math.min(0.31, halfW * 0.78) * 0.7;
-  for (const tw of twigs) {
-    const b = catmull(pts, tw.u), d = Math.hypot(b[0] - PIVOT.x, b[1] - PIVOT.y);
-    if (d < Rh * 1.9) { tw.len *= 0.6; tw.nl = Math.min(tw.nl, 3); tw.big = false; }
-    if (d < Rh * 2.4) tw.ang = Math.sign(tw.ang || 1) * Math.min(Math.abs(tw.ang), 0.55);   /* lie along the vine: never hang like a hand */
+  const S = [-halfW - 0.06, -0.46], K = [PIVOT.x, PIVOT.y];
+  const C = [S[0] * 0.45 + K[0] * 0.55 - 0.02, S[1] * 0.3 + K[1] * 0.7 + 0.03];      /* a gentle arch */
+  const N = 8, nodes = [];
+  for (let i = 0; i <= N; i++) {
+    const u = i / N, v = 1 - u;
+    let x = v * v * S[0] + 2 * v * u * C[0] + u * u * K[0];
+    let y = v * v * S[1] + 2 * v * u * C[1] + u * u * K[1];
+    if (i > 0 && i < N) { const j = (r() - 0.5) * 0.018; x += j * 0.6; y += j; }  /* a little crooked at each node */
+    nodes.push([x, y, Z0 + 0.05 * (1 - u) * (1 - u)]);   /* near the wall at the tip, a little farther out at the edge */
   }
-  /* twigs near the clock grow to the side away from it */
-  for (const tw of twigs) {
-    const b = catmull(pts, tw.u), b2 = catmull(pts, Math.min(1, tw.u + 0.01));
-    if (Math.hypot(b[0] - PIVOT.x, b[1] - PIVOT.y) > 0.42) continue;
-    const va = Math.atan2(b2[1] - b[1], b2[0] - b[0]);
-    const end = a => Math.hypot(b[0] + Math.cos(a) * tw.len - PIVOT.x, b[1] + Math.sin(a) * tw.len - PIVOT.y);
-    if (end(va - tw.ang) > end(va + tw.ang)) tw.ang = -tw.ang;
+  const twigs = [];
+  for (let i = 1; i < N - 1; i++) {
+    const b = nodes[i], d = Math.hypot(b[0] - K[0], b[1] - K[1]);
+    if (d < Rh * 1.35) continue;                        /* the tip belongs to the hands */
+    const dir = Math.atan2(nodes[i + 1][1] - b[1], nodes[i + 1][0] - b[0]);
+    const side = i % 2 ? 1 : -1;
+    const off = d < Rh * 2.4 ? 0.95 + 0.5 * r() : 0.5 + 0.6 * r();   /* near the tip they lean back, away from the clock */
+    twigs.push({ i, ang: dir + side * off, len: (0.05 + 0.07 * r()) * (Rh / 0.217), nl: 2 + Math.floor(r() * 3), side, ph: r() * 50 });
   }
-  VINE = { pts, twigs, uk };
+  BEARER = { nodes, twigs, Rh };
 }
-function emitVine(t) {
-  const V = VINE, N = 18;
-  const zAt = u => Z0 + 0.006 + 0.010 * Math.sin((u - 0.5) * 9);
-  const pt = u => { const q = catmull(V.pts, u); return [q[0], q[1], zAt(u)]; };
-  /* the vine: a mature stem, thicker than any of the clock's twigs */
-  let prev = pt(0);
-  for (let i = 1; i <= N; i++) { const p = pt(i / N); emitSeg(prev, p, 0.0060 - 0.0018 * Math.abs(i / N - 0.5) * 2, 1); prev = p; }
-  const fl = flutterAt(0);
-  for (const tw of V.twigs) {
-    const b = pt(tw.u), b2 = pt(Math.min(1, tw.u + 0.01));
-    const a = Math.atan2(b2[1] - b[1], b2[0] - b[0]) + tw.ang + fl * 0.04 * sn1(t * 0.5 + tw.ph);
-    const e = [b[0] + Math.cos(a) * tw.len, b[1] + Math.sin(a) * tw.len, b[2] + 0.012];
-    const m = [(b[0] + e[0]) / 2 - Math.sin(a) * tw.len * 0.07, (b[1] + e[1]) / 2 + Math.cos(a) * tw.len * 0.07, b[2] + 0.006];
+function emitBearer(t) {
+  const B = BEARER, n = B.nodes.length - 1;
+  /* the branch: thicker than any of the clock's shoots, thinning toward the tip */
+  for (let i = 0; i < n; i++) emitSeg(B.nodes[i], B.nodes[i + 1], 0.0060 - 0.0020 * i / (n - 1), 1);
+  const fl = flutterAt(-0.3);
+  for (const tw of B.twigs) {
+    const b = B.nodes[tw.i];
+    const a = tw.ang + fl * 0.04 * sn1(t * 0.5 + tw.ph);
+    const e = [b[0] + Math.cos(a) * tw.len, b[1] + Math.sin(a) * tw.len, b[2] + 0.01];
+    const m = [(b[0] + e[0]) / 2 - Math.sin(a) * tw.len * 0.06, (b[1] + e[1]) / 2 + Math.cos(a) * tw.len * 0.06, b[2] + 0.005];
     emitSeg(b, m, 0.0028, 1); emitSeg(m, e, 0.0020, 1);
     for (let k = 0; k < tw.nl; k++) {
-      const s = 0.35 + 0.65 * (k + 1) / tw.nl;
-      const p = [b[0] + (e[0] - b[0]) * s, b[1] + (e[1] - b[1]) * s, b[2] + 0.012 * s];
+      const s = 0.4 + 0.6 * (k + 1) / tw.nl;
+      const p = [b[0] + (e[0] - b[0]) * s, b[1] + (e[1] - b[1]) * s, b[2] + 0.01 * s];
       const side = k === tw.nl - 1 ? 0 : (k % 2 ? 1 : -1) * tw.side;
-      const ll = (tw.big ? 0.036 : 0.028) * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));   /* smaller than the hour hand's leaves */
-      emitLeaf3D(p, a + side * 0.72 + fl * 0.12 * sn1(t * 1.25 + tw.ph + k), 0.25 * (side || 0.6), ll, tw.big ? 1.1 : 0.85,
-                 0.3 * (side || 1) + fl * 0.55 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96, tw.ph * 0.173 + k * 0.29);
+      const ll = 0.032 * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));     /* smaller than the hour hand's leaves */
+      emitLeaf3D(p, a + side * 0.72 + fl * 0.12 * sn1(t * 1.25 + tw.ph + k), 0.22 * (side || 0.6), ll, 0.8,
+                 0.25 * (side || 1) + fl * 0.5 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96, tw.ph * 0.173 + k * 0.29);
     }
   }
+  /* a few leaves straight off the branch */
+  for (let i = 1; i < n - 1; i += 2) {
+    const b = B.nodes[i];
+    if (Math.hypot(b[0] - PIVOT.x, b[1] - PIVOT.y) < B.Rh * 1.3) continue;
+    const dir = Math.atan2(B.nodes[i + 1][1] - b[1], B.nodes[i + 1][0] - b[0]), side = i % 4 === 1 ? -1 : 1;
+    emitLeaf3D(b, dir + side * 1.0, 0.2 * side, 0.034, 0.85, 0.3 * side + fl * 0.5 * sn1(t * 0.7 + i), 0.95, 0.4 + i * 0.13);
+  }
 }
+
 /* the second hand: a tendril, the thinnest thing on the wall, curling at its tip */
 function emitTendril(frac, len, t, px) {
   const th = frac * Math.PI * 2 + 0.01 * sn1(t * 0.6 + 4.2);
@@ -1159,12 +1160,17 @@ function emitBranch(B, leafArr, wArr, jArr, zBase, zTip, aK, th0, th1) {
    from its knot a short twig with broad leaves points at the hour and a long
    slender one at the minute. No numerals, no dial.                           */
 const PIVOT = { x: 0, y: -0.01 };
-const Z0 = 0.014;                            /* the knot, about 2 cm out from the wall on a short stem */
+const Z0 = 0.014;                            /* the knot at the branch tip, about 2 cm out from the wall */
 /* leaves along a twig: s along the stem (0..1), side, angle off the stem, length, width */
 const HOUR_LEAVES = [[0.45, 1, 0.85, 0.060, 0.90], [0.65, -1, 0.75, 0.068, 0.95], [0.84, 1, 0.60, 0.072, 0.92], [1.0, 0, 0.0, 0.080, 0.95]];
 const MIN_LEAVES = [[0.58, -1, 0.65, 0.036, 0.50], [0.74, 1, 0.58, 0.040, 0.55], [0.88, -1, 0.50, 0.042, 0.55], [1.0, 0, 0.0, 0.048, 0.60]];
 function handFracs() {
   const d = new Date();
+  if (dbg.minutes !== null) {
+    const M = ((dbg.minutes % 1440) + 1440) % 1440;
+    const sec = dbg.playing ? (M * 60) % 60 : d.getSeconds() + d.getMilliseconds() / 1000;
+    return { h: ((M / 60) % 12) / 12, m: (M % 60) / 60, s: sec / 60 };
+  }
   let hh, mm, ss;
   if (debugMin !== null) { hh = Math.floor(debugMin / 60); mm = debugMin % 60; ss = 0; }
   else { hh = d.getHours(); mm = d.getMinutes(); ss = d.getSeconds() + d.getMilliseconds() / 1000; }
@@ -1267,7 +1273,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   if (lost) return;
   /* ~30 fps when nothing is happening; full rate while arriving, changing or being touched */
-  const idle = clock > 2.5 && !trans.active && (clock - pointer.last) > 2.5;
+  const idle = clock > 2.5 && !trans.active && (clock - pointer.last) > 2.5 && !dbg.playing;
   const since = now - lastDraw;
   if (idle && since < 1000 / 30 - 4) return;
   const raw = since / 1000;
@@ -1276,8 +1282,14 @@ function frame(now) {
   clock += dt;
   const t = clock;
 
-  if (now - lastInfoAt > 250) { lastInfoAt = now; refreshInfo(); }
-  if (!trans.active && info.key !== shownKey && !needsResize) startTransition(info.key);
+  if (dbg.playing && dbg.minutes !== null) dbg.minutes = (dbg.minutes + dt * dbg.speed / 60) % 1440;
+  if (now - lastInfoAt > 250 || dbg.minutes !== null) { lastInfoAt = now; refreshInfo(); }
+  if (!trans.active && info.key !== shownKey && !needsResize) {
+    /* scrubbing or fast playback crosses minutes too quickly for a cloud each time */
+    if (dbg.minutes !== null && (!dbg.playing || dbg.speed > 10)) shownKey = info.key;
+    else startTransition(info.key);
+  }
+  if (dbgBar && dbg.on) updateDebugBar();
 
   let perturbed = false;
   if (needsResize) { resize(); perturbed = true; }
@@ -1321,9 +1333,8 @@ function frame(now) {
   const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
   emitHand(fr.h, Rh * 0.62, 0.05, 0.010, 0.0040, 0.0026, HOUR_LEAVES, wt, sw * 0.8, 3.1, Rh / 0.31, true);
   emitHand(fr.m, Rh, -0.035, 0.016, 0.0026, 0.0012, MIN_LEAVES, wt, sw, 11.7, Rh / 0.31);
-  emitSeg([PIVOT.x, PIVOT.y, 0], [PIVOT.x, PIVOT.y, Z0], 0.0025, 1);    /* the short stem: its shadow is only a small knot */
   emitTendril(fr.s, Rh * 1.12, wt, (0.5 - yBot) / H);
-  emitVine(wt);
+  emitBearer(wt);
   const handQ = nearQ;
   poseBranch(branchA, wt, 0, 0, leafA, leafWA, jointA);
   poseBranch(branchB, wt, 0, 0, leafB, leafWB, jointB);
@@ -1458,6 +1469,82 @@ function frame(now) {
   gl.drawArrays(gl.POINTS, 0, MOTES);
   gl.disable(gl.BLEND);
 }
+
+/* ------------------------------------------------------------------ */
+/*  Debug: a sequence bar to scrub through the day and watch the clouds  */
+/* ------------------------------------------------------------------ */
+/* Shown with #debug in the URL or Shift+D. Not part of the normal page.  */
+let dbgBar = null, dbgEls = null, dbgDrag = false, dbgLastUi = 0;
+function litColor(L) {
+  return ALB.map((a, j) => Math.pow(1 - Math.exp(-a * (L.amb[j] + L.sun[j] * L.si * 1.8 * 0.6) * 1.12), 1 / 2.2));
+}
+function setupDebugBar() {
+  if (dbgBar) { dbgBar.style.display = dbg.on ? 'flex' : 'none'; return; }
+  if (!dbg.on) return;
+  const st = document.createElement('style');
+  st.textContent = `
+#kc-dbg{position:fixed;left:16px;right:16px;bottom:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:rgba(20,22,26,.72);color:#eee;font:12px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  border-radius:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:10;user-select:none}
+#kc-dbg button,#kc-dbg select{background:rgba(255,255,255,.12);color:#eee;border:1px solid rgba(255,255,255,.2);border-radius:6px;
+  font:inherit;padding:5px 9px;cursor:pointer}
+#kc-dbg button:hover,#kc-dbg select:hover{background:rgba(255,255,255,.22)}
+#kc-dbg button:focus-visible,#kc-dbg select:focus-visible,#kc-dbg input:focus-visible{outline:2px solid #fff;outline-offset:1px}
+#kc-dbg .lbl{font-variant-numeric:tabular-nums;min-width:40px;text-align:right;font-size:13px}
+#kc-dbg .trk{position:relative;flex:1;height:26px;min-width:120px}
+#kc-dbg .trk canvas{position:absolute;left:0;right:0;top:12px;width:100%;height:10px;border-radius:5px}
+#kc-dbg .ticks{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;font-size:9px;opacity:.65;pointer-events:none}
+#kc-dbg input[type=range]{position:absolute;left:0;right:0;top:8px;width:100%;height:18px;margin:0;background:transparent;-webkit-appearance:none;appearance:none}
+#kc-dbg input[type=range]::-webkit-slider-runnable-track{height:18px;background:transparent}
+#kc-dbg input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:4px;height:18px;background:#fff;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.45)}`;
+  document.head.appendChild(st);
+  const bar = document.createElement('div');
+  bar.id = 'kc-dbg';
+  bar.innerHTML = '<button data-k="play" title="play / pause">▶</button>' +
+    '<select data-k="speed" title="speed"><option value="1">×1</option><option value="10">×10</option><option value="60" selected>×60</option><option value="600">×600</option><option value="3600">×3600</option></select>' +
+    '<div class="trk"><div class="ticks"><span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>' +
+    '<canvas width="576" height="10"></canvas><input data-k="time" type="range" min="0" max="1439" step="1" aria-label="time of day"></div>' +
+    '<span class="lbl" data-k="label">--:--</span>' +
+    '<button data-k="cloud" title="send a cloud across now">cloud</button>' +
+    '<button data-k="now" title="back to the real time">now</button>';
+  document.body.appendChild(bar);
+  const q = k => bar.querySelector(`[data-k="${k}"]`);
+  dbgEls = { play: q('play'), speed: q('speed'), time: q('time'), label: q('label') };
+  /* the track shows the day's light: sun-lit wall colour hour by hour */
+  const cv = bar.querySelector('canvas'), c2 = cv.getContext('2d');
+  for (let x = 0; x < cv.width; x++) {
+    const c = litColor(lightAt(x / cv.width * 24));
+    c2.fillStyle = css(c); c2.fillRect(x, 0, 1, cv.height);
+  }
+  dbgEls.speed.value = String(dbg.speed);
+  const realMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; };
+  dbgEls.play.addEventListener('click', () => {
+    if (dbg.minutes === null) dbg.minutes = realMinutes();
+    dbg.playing = !dbg.playing;
+  });
+  dbgEls.speed.addEventListener('change', () => { dbg.speed = +dbgEls.speed.value; });
+  dbgEls.time.addEventListener('input', () => { dbg.minutes = +dbgEls.time.value; dbgDrag = true; });
+  dbgEls.time.addEventListener('change', () => { dbgDrag = false; });
+  q('cloud').addEventListener('click', () => { trans.active = true; trans.t0 = clock; trans.to = info.key; });
+  q('now').addEventListener('click', () => { dbg.minutes = null; dbg.playing = false; });
+  bar.addEventListener('pointerdown', e => e.stopPropagation());
+  dbgBar = bar;
+}
+function updateDebugBar() {
+  const t = performance.now();
+  if (t - dbgLastUi < 80) return;
+  dbgLastUi = t;
+  const d = new Date();
+  const M = dbg.minutes !== null ? ((dbg.minutes % 1440) + 1440) % 1440 : d.getHours() * 60 + d.getMinutes();
+  if (!dbgDrag) dbgEls.time.value = String(Math.floor(M));
+  dbgEls.label.textContent = pad(Math.floor(M / 60)) + ':' + pad(Math.floor(M % 60)) + (dbg.minutes === null ? '' : '*');
+  dbgEls.play.textContent = dbg.playing ? '❚❚' : '▶';
+}
+window.addEventListener('keydown', e => {
+  if (e.shiftKey && (e.key === 'D' || e.key === 'd')) { dbg.on = !dbg.on; setupDebugBar(); }
+});
+window.addEventListener('hashchange', () => { if (dbg.on) setupDebugBar(); });
+setupDebugBar();
 
 try { initGL(); } catch (err) {
   console.warn(err);
