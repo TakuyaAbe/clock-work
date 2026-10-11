@@ -10,12 +10,13 @@ Everything on the wall is a shadow of something in front of it, cast by a sun th
 - WebGL 1 and vanilla JavaScript, no build step, no text on screen
 - Shadows are computed from 3D leaves and twigs: each layer is projected along the sun onto the wall, then averaged over the sun's disc
 - Moving the pointer nudges the wind and the sun a little; it works without a mouse
+- Each new tab sets the trees out afresh: the branches, the leaves and the gaps in the canopy fall differently every time, while the clock stays in the middle
 - Respects `prefers-reduced-motion` (slower wind, no gusts, a shorter and fainter cloud)
 - Rendering is capped at about 30 fps when idle, with device pixel ratio capped at 1.5
 
 ## Debug
 
-Add `#debug` to the page URL, or press Shift+D on the page, to show a sequence bar: a slider over the day's light (0 to 24 h), play and pause at x1 to x3600, a button that sends the minute's cloud across now, and a button back to the real time. `#t=HH:MM` fixes the time without the bar.
+Add `#debug` to the page URL, or press Shift+D on the page, to show a sequence bar: a slider over the day's light (0 to 24 h), play and pause at x1 to x3600, a button that sends the minute's cloud across now, a button back to the real time, and a shuffle button that sets the trees out afresh. The bar shows the layout's seed; `#seed=N` brings that layout back (`#seed=0` is the one in the screenshots). `#t=HH:MM` fixes the time without the bar.
 
 ## Install from source
 

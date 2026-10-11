@@ -599,6 +599,11 @@ function mulberry(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+/* The trees are set out afresh for each new tab; #seed=N fixes the layout (0 is the reference one). */
+function hashSeed() { const m = /seed=(\d+)/.exec(location.hash || ''); return m ? +m[1] % 1000000 : null; }
+let sceneSeed = hashSeed() ?? 1 + Math.floor(Math.random() * 999999);
+const seeded = n => mulberry((n + Math.imul(sceneSeed, 0x9E3779B1)) | 0);
+let sceneFlip = sceneSeed !== 0 && seeded(5)() < 0.5;      /* the dominant branch on the left */
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 function h2(x, y) { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }
@@ -626,7 +631,7 @@ function spring(s, target, omega, zeta, dt) {
 /* ------------------------------------------------------------------ */
 
 function makeBranch(opts, nLeaves, seed) {
-  const r = mulberry(seed);
+  const r = seeded(seed);
   const leaves = [];
   for (let k = 0; k < nLeaves; k++) {
     const s = clamp(0.14 + 0.86 * (k + 0.9 * r()) / nLeaves, 0, 0.995);
@@ -652,16 +657,17 @@ function makeBranch(opts, nLeaves, seed) {
 }
 
 /* a dominant branch from the upper-right corner, a softer one along the top-left */
-const branchA = makeBranch({
+const OPTS_A = {
   lens: [0.13, 0.12, 0.11, 0.10, 0.09, 0.08, 0.07],
   curve: [0.0, -0.10, -0.08, 0.06, 0.10, 0.08, 0.05],
   leafLen: 0.088, parallax: 0.02, flex: 1.0, cap: 0.20, seed: 3.7
-}, 16, 71);
-const branchB = makeBranch({
+};
+const OPTS_B = {
   lens: [0.14, 0.12, 0.10, 0.09, 0.08],
   curve: [0.0, -0.10, -0.05, 0.08, 0.10],
   leafLen: 0.085, parallax: 0.035, flex: 0.7, cap: 0.16, seed: 9.1
-}, 12, 1337);
+};
+let branchA = makeBranch(OPTS_A, 16, 71), branchB = makeBranch(OPTS_B, 12, 1337);
 
 function layoutBranches() {
   const portrait = smooth(1.25, 0.65, 2 * halfW);
@@ -673,6 +679,10 @@ function layoutBranches() {
   branchB.ax = -halfW - 0.03;
   branchB.ay = 0.60;
   branchB.a0 = -0.15 - 0.2 * portrait;
+  for (const B of [branchA, branchB]) {             /* mirrored, they reach in from the other side */
+    B.mir = sceneFlip ? -1 : 1;
+    if (sceneFlip) { B.ax = -B.ax; B.a0 = Math.PI - B.a0; }
+  }
 }
 
 const leafA = new Float32Array(16 * 4), leafWA = new Float32Array(8 * 4), jointA = new Float32Array(8 * 2);
@@ -690,7 +700,7 @@ function poseBranch(B, t, sunX, sunY, leafArr, wArr, jArr) {
   const per = capped / B.wsum;
   jArr[0] = x; jArr[1] = y;
   for (let i = 0; i < n; i++) {
-    a += B.curve[i] + per * (0.25 + 0.22 * i);
+    a += B.mir * B.curve[i] + per * (0.25 + 0.22 * i);
     B.ang[i] = a;
     x += Math.cos(a) * B.lens[i] * sc;
     y += Math.sin(a) * B.lens[i] * sc;
@@ -707,7 +717,7 @@ function poseBranch(B, t, sunX, sunY, leafArr, wArr, jArr) {
     const px = x0 + (jArr[i * 2 + 2] - x0) * f, py = y0 + (jArr[i * 2 + 3] - y0) * f;
     const fl = flutterAt(px);
     const flt = fl * (0.20 * sn1(t * L.fq * 0.35 + L.ph) + 0.05 * sn1(t * L.fq * 0.7 + L.ph * 3.1));
-    let ang = B.ang[i] + L.off + flt + leafBend;
+    let ang = B.ang[i] + B.mir * L.off + flt + leafBend;
     ang += Math.atan2(Math.sin(down - ang), Math.cos(down - ang)) * L.droop;
     const len = L.len * sc;
     const ca = Math.cos(ang), sa = Math.sin(ang);
@@ -772,7 +782,7 @@ const MOTES = 48;
 const moteData = new Float32Array(MOTES * 4);
 const motes = [];
 {
-  const r = mulberry(9001);
+  const r = seeded(9001);
   for (let i = 0; i < MOTES; i++) {
     motes.push({ x: (r() - 0.5) * 3, y: r() - 0.5, z: r(), ph: r() * 6.283, ph2: r() * 6.283, sp: 0.4 + r() * 0.8, gl: r() * 6.283 });
   }
@@ -884,7 +894,7 @@ function putQuad(arr, qi, c, l, w, p) {
    the canopy's shadow slides across the wall, wrapping around a tile.        */
 let canMid = [0, 0], canFar = [0, 0], tile = [0, 0, 1, 1];
 function buildCanopy() {
-  const r = mulberry(4242);
+  const r = seeded(4242);
   const pad = 0.1;
   tile = [occRect[0] - pad, occRect[1] - pad, occRect[2] + 2 * pad, occRect[3] + 2 * pad];
   const area = tile[2] * tile[3];
@@ -958,8 +968,9 @@ function emitLeaf(base, L, Wv, opacity, shape) {
   putQuad(nearData, nearQ++, base, L, Wv, [shape === undefined ? 0.5 : shape % 1, 0, 0, opacity]);
 }
 /* the clearing: overlapping wide gaps around the sprig, breathing slightly */
-const CLEAR_LOBES = (() => {
-  const r = mulberry(77);
+let CLEAR_LOBES = makeClearLobes();
+function makeClearLobes() {
+  const r = seeded(77);
   /* an uneven opening: a core that leans to one side, ragged lobes, a few stray gaps */
   const out = [[0.06, 0.04, 0.62, 0.78, 0.5], [-0.22, -0.12, 0.48, 0.7, 2.1], [0.24, -0.2, 0.42, 0.62, 1.2]];
   for (let i = 0; i < 16; i++) {
@@ -967,7 +978,7 @@ const CLEAR_LOBES = (() => {
     out.push([Math.cos(a) * d, Math.sin(a) * d * 0.85, 0.14 + 0.26 * r() * (1.15 - d * 0.5), 0.45 + 0.5 * r(), r() * 6.2832]);
   }
   return out;
-})();
+}
 function emitClearing(c, R, t) {
   for (let i = 0; i < CLEAR_LOBES.length; i++) {
     const [ox, oy, rr, el, an0] = CLEAR_LOBES[i];
@@ -998,7 +1009,7 @@ function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity, shape) {
    the knot.                                                                 */
 let HOURB = null;
 function buildHourBranch() {
-  const r = mulberry(909);
+  const r = seeded(909);
   const Rh = Math.min(0.31, halfW * 0.78) * 0.7;
   /* nodes as (along, across) from the knot, in the hand's own frame */
   const N = 22, nodes = [[0, 0]];
@@ -1086,7 +1097,7 @@ function emitSecondTwig(frac, len, t, px) {
    (sharp shadows), some hang farther out (softer ones).                     */
 let MORE = [];
 function buildMoreBranches() {
-  const r = mulberry(31337);
+  const r = seeded(31337);
   MORE = [];
   const hw = halfW, yb = yBot, R = Math.min(0.31, halfW * 0.78);
   const make = (x, y, ang, z, ch, ls = 1) => {          /* ls: a longer branch, as leafy along its length */
@@ -1107,7 +1118,7 @@ function buildMoreBranches() {
     return true;
   };
   const place = (gen, minD) => {
-    for (let tries = 0; tries < 24; tries++) { const B = gen(); if (clear(B, minD) || tries === 23) { MORE.push(B); return; } }
+    for (let tries = 0; tries < 24; tries++) { const B = gen(); if (clear(B, minD)) { MORE.push(B); return; } }
   };
   for (let i = 0; i < 6; i++) {
     const side = i % 4;
@@ -1527,10 +1538,12 @@ function setupDebugBar() {
     '<canvas width="576" height="10"></canvas><input data-k="time" type="range" min="0" max="1439" step="1" aria-label="time of day"></div>' +
     '<span class="lbl" data-k="label">--:--</span>' +
     '<button data-k="cloud" title="send a cloud across now">cloud</button>' +
-    '<button data-k="now" title="back to the real time">now</button>';
+    '<button data-k="now" title="back to the real time">now</button>' +
+    '<button data-k="shuffle" title="set the trees out afresh">shuffle</button>' +
+    '<span class="lbl" data-k="seed" title="#seed=N brings this layout back"></span>';
   document.body.appendChild(bar);
   const q = k => bar.querySelector(`[data-k="${k}"]`);
-  dbgEls = { play: q('play'), speed: q('speed'), time: q('time'), label: q('label') };
+  dbgEls = { play: q('play'), speed: q('speed'), time: q('time'), label: q('label'), seed: q('seed') };
   /* the track shows the day's light: sun-lit wall colour hour by hour */
   const cv = bar.querySelector('canvas'), c2 = cv.getContext('2d');
   for (let x = 0; x < cv.width; x++) {
@@ -1548,6 +1561,11 @@ function setupDebugBar() {
   dbgEls.time.addEventListener('change', () => { dbgDrag = false; });
   q('cloud').addEventListener('click', () => { trans.active = true; trans.t0 = clock; trans.to = info.key; });
   q('now').addEventListener('click', () => { dbg.minutes = null; dbg.playing = false; });
+  q('shuffle').addEventListener('click', () => {
+    reseed(1 + Math.floor(Math.random() * 999999));
+    const h = (location.hash || '#').replace(/[#&]?seed=\d+/, '');
+    history.replaceState(null, '', (h.length > 1 ? h + '&' : '#') + 'seed=' + sceneSeed);
+  });
   bar.addEventListener('pointerdown', e => e.stopPropagation());
   dbgBar = bar;
 }
@@ -1560,11 +1578,23 @@ function updateDebugBar() {
   if (!dbgDrag) dbgEls.time.value = String(Math.floor(M));
   dbgEls.label.textContent = pad(Math.floor(M / 60)) + ':' + pad(Math.floor(M % 60)) + (dbg.minutes === null ? '' : '*');
   dbgEls.play.textContent = dbg.playing ? '❚❚' : '▶';
+  dbgEls.seed.textContent = 'seed ' + sceneSeed;
 }
 window.addEventListener('keydown', e => {
   if (e.shiftKey && (e.key === 'D' || e.key === 'd')) { dbg.on = !dbg.on; setupDebugBar(); }
 });
-window.addEventListener('hashchange', () => { if (dbg.on) setupDebugBar(); });
+window.addEventListener('hashchange', () => {
+  if (dbg.on) setupDebugBar();
+  const n = hashSeed();
+  if (n !== null && n !== sceneSeed) reseed(n);
+});
+function reseed(n) {
+  sceneSeed = n;
+  sceneFlip = n !== 0 && seeded(5)() < 0.5;
+  branchA = makeBranch(OPTS_A, 16, 71); branchB = makeBranch(OPTS_B, 12, 1337);
+  CLEAR_LOBES = makeClearLobes();
+  needsResize = true;                       /* lays out the rest again */
+}
 setupDebugBar();
 
 try { initGL(); } catch (err) {
