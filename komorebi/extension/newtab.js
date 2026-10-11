@@ -220,9 +220,14 @@ void main(){
     a = aa(w - abs(vQ.y), 0.);
 #endif
   } else if (vKind < 1.5) {
-    /* a twig: soft-edged so thin ones don't crawl as they move */
+    /* a twig: soft-edged so thin ones don't crawl as they move, and round at its ends
+       (vShape: the share of the quad each end cap takes) */
+    float du = vShape > 0. ? max(max(vShape - vQ.x, vQ.x - (1. - vShape)), 0.) / vShape : 0.;
+    float d = length(vec2(du, vQ.y));
 #ifdef HAS_DERIV
-    a = aa(1. - abs(vQ.y), fwidth(vQ.y));
+    a = aa(1. - d, fwidth(d));
+#else
+    a = step(d, 1.);
 #endif
   } else {
     /* a gap between leaves: an ellipse */
@@ -325,14 +330,15 @@ void main(){
   vec2 uv = gl_FragCoord.xy / uRes;
   vec2 fromC = uv - .5;
 
-  /* light splits a little at its edges: red one way, blue the other (along the light, and outward like a lens) */
+  /* light splits at its edges: warm one way, cool the other (along the light, and outward like a lens).
+     Each colour is spread over two taps, so the split melts into the soft edges instead of banding. */
   vec2 ca = fromC * uFx.z + uFx.xy;
-  float Sr = texture2D(uLight, uv - ca).r * 2.;   /* red lands outward */
+  float Sr = texture2D(uLight, uv - ca * .55).r + texture2D(uLight, uv - ca * 1.45).r;   /* red lands outward */
   vec3  Lg = texture2D(uLight, uv).rgb;
   float Sg = Lg.r * 2.;
-  float Sb = texture2D(uLight, uv + ca).r * 2.;
-  /* the split belongs to bright light: where it is dim the channels come back together */
-  float fw = smoothstep(.5, 1., max(max(Sr, Sg), Sb));
+  float Sb = texture2D(uLight, uv + ca * .55).r + texture2D(uLight, uv + ca * 1.45).r;
+  /* the split belongs to lit patches: where it is dim the channels come back together */
+  float fw = smoothstep(.22, .75, max(max(Sr, Sg), Sb));
   vec3 S = min(mix(vec3(Sg), vec3(Sr, Sg, Sb), fw), 1.45) * Lg.g * nearVis();   /* g: the branches' clean shadows */
   float halo = Lg.b;
 
@@ -959,9 +965,9 @@ function emitSeg(a, b, half, opacity) {
   let dx = pb[0] - pa[0], dy = pb[1] - pa[1];
   const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
   const ex = b[0] - a[0], ey = b[1] - a[1], ez = b[2] - a[2];
-  const ext = half / (Math.hypot(ex, ey, ez) || 1);        /* a hair past both ends, so segments join */
+  const ext = half / (Math.hypot(ex, ey, ez) || 1);        /* a round cap past both ends, so segments join */
   putQuad(nearData, nearQ++, [a[0] - ex * ext, a[1] - ey * ext, a[2] - ez * ext],
-    [ex * (1 + 2 * ext), ey * (1 + 2 * ext), ez * (1 + 2 * ext)], [-dy * half, dx * half, 0], [0, 0, 1, opacity]);
+    [ex * (1 + 2 * ext), ey * (1 + 2 * ext), ez * (1 + 2 * ext)], [-dy * half, dx * half, 0], [ext / (1 + 2 * ext), 0, 1, opacity]);
 }
 function emitLeaf(base, L, Wv, opacity, shape) {
   if (nearQ >= NEAR_MAX) return;
@@ -1475,7 +1481,7 @@ function frame(now) {
   gl.uniform2f(C.u('uCloud2'), T.depth, T.lag);
   gl.uniform2f(C.u('uRelD'), sd[0], sd[1]);
   const fs = smooth(0.45, 0.95, L.si) * 0.9 + 0.1;   /* moonlight hardly splits */
-  gl.uniform4f(C.u('uFx'), sd[0] * 0.0016 * fs, sd[1] * 0.0016 * fs * W / H, 0.005 * fs, 0.22);
+  gl.uniform4f(C.u('uFx'), sd[0] * 0.007 * fs, sd[1] * 0.007 * fs * W / H, 0.016 * fs, 0.22);
   const fpx = (0.5 - yBot) / H;                  /* one device pixel, in wall units */
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, nearT.tex);
   gl.uniform1i(C.u('uNear'), 2);
