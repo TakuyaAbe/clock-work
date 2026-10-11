@@ -20,7 +20,7 @@ Every second, tiles spring into place to form the next digit and land exactly on
 ## Package for the Chrome Web Store
 
 ```sh
-cd extension && zip -rqX ../kinetic-clock-newtab.zip manifest.json newtab.html newtab.js icons
+mkdir -p ../dist/kinetic && cd extension && zip -rqX ../../dist/kinetic/kinetic-clock-newtab.zip manifest.json newtab.html newtab.js icons
 ```
 
 Store listing text and graphics are in [`store/`](store/).

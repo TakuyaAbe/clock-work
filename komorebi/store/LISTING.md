@@ -1,7 +1,8 @@
 # Chrome Web Store 掲載情報 — Komorebi Clock New Tab
 
 ## パッケージ
-- `komorebi-clock-newtab-1.0.0.zip`（Manifest V3、権限なし、外部通信なし）
+- `dist/komorebi/komorebi-clock-newtab-1.0.0.zip`（Manifest V3、権限なし、外部通信なし。`dist/` は git 管理外）
+- ドラッグ用にまとめたもの: `dist/komorebi/store-upload/`（zip、画像、コピー用の申請シート `copy_sheet.html`）
 
 ## ストアの掲載情報タブ
 - **名前**: Komorebi Clock New Tab（manifest から自動入力）

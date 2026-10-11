@@ -1,2 +1,6 @@
 .DS_Store
 *.zip
+# local only: built packages, promo videos, design history
+dist/
+media/
+attic/

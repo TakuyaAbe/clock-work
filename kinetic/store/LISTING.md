@@ -1,7 +1,7 @@
 # Chrome Web Store 掲載情報 — Kinetic Clock New Tab
 
 ## パッケージ
-- `kinetic-clock-newtab-1.0.0.zip`（Manifest V3、権限なし、外部通信なし）
+- `dist/kinetic/kinetic-clock-newtab-1.0.1.zip`（Manifest V3、権限なし、外部通信なし。`dist/` は git 管理外）
 
 ## ストアの掲載情報タブ
 - **名前**: Kinetic Clock New Tab（manifest から自動入力）
@@ -29,7 +29,7 @@ Every second, tiles spring into place to form the new digit, landing exactly on 
 - OS の「視差効果を減らす」設定に従って動きを控えめにします。
 
 ### グラフィック
-- アイコン 128×128: `kinetic-clock-ext/icons/icon128.png`（zip に同梱）
+- アイコン 128×128: `extension/icons/icon128.png`（zip に同梱）
 - スクリーンショット 1280×800: `screenshot_1280x800_a.png`, `screenshot_1280x800_b.png`
 - 小プロモーションタイル 440×280: `promo_small_440x280.png`
 
