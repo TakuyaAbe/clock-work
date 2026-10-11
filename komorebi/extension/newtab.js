@@ -41,7 +41,7 @@ function nowInfo() {
 /* ------------------------------------------------------------------ */
 /* h, sun rgb, sun intensity, ambient rgb, ellipse axis angle (deg),
    elongation, softness, canopy openness, mote amount, pool glow      */
-const NIGHT = { sun: [0.62, 0.74, 1.0], si: 0.62, amb: [0.050, 0.062, 0.092], ang: 74, el: 1.25, soft: 0.50, open: 0.23, mote: 0.18, glow: 0.10 };
+const NIGHT = { sun: [0.62, 0.74, 1.0], si: 0.55, amb: [0.085, 0.100, 0.145], ang: 74, el: 1.25, soft: 0.50, open: 0.23, mote: 0.18, glow: 0.10 };
 const KEYS = [
   [0.0, NIGHT],
   [4.5, NIGHT],
@@ -51,8 +51,8 @@ const KEYS = [
   [9.5, { sun: [1.0, 0.90, 0.79], si: 1.08, amb: [0.345, 0.335, 0.340], ang: 52, el: 1.45, soft: 0.28, open: 0.39, mote: 0.75, glow: 0.03 }],
   [12.5, { sun: [1.0, 0.965, 0.91], si: 1.15, amb: [0.385, 0.375, 0.370], ang: 88, el: 1.06, soft: 0.25, open: 0.39, mote: 0.55, glow: 0.025 }],
   [15.0, { sun: [1.0, 0.90, 0.76], si: 1.10, amb: [0.330, 0.325, 0.335], ang: 124, el: 1.4, soft: 0.28, open: 0.39, mote: 0.75, glow: 0.03 }],
-  [16.9, { sun: [1.0, 0.58, 0.20], si: 0.98, amb: [0.265, 0.205, 0.170], ang: 150, el: 2.15, soft: 0.30, open: 0.37, mote: 1.0, glow: 0.04 }],
-  [18.3, { sun: [1.0, 0.44, 0.17], si: 0.92, amb: [0.165, 0.125, 0.140], ang: 162, el: 2.55, soft: 0.36, open: 0.32, mote: 0.85, glow: 0.06 }],
+  [16.9, { sun: [1.0, 0.58, 0.20], si: 0.98, amb: [0.235, 0.215, 0.235], ang: 150, el: 2.15, soft: 0.30, open: 0.37, mote: 1.0, glow: 0.04 }],
+  [18.3, { sun: [1.0, 0.44, 0.17], si: 0.92, amb: [0.145, 0.135, 0.170], ang: 162, el: 2.55, soft: 0.36, open: 0.32, mote: 0.85, glow: 0.06 }],
   [19.3, { sun: [0.86, 0.52, 0.58], si: 0.62, amb: [0.095, 0.090, 0.135], ang: 118, el: 1.8, soft: 0.46, open: 0.28, mote: 0.35, glow: 0.09 }],
   [20.2, NIGHT],
   [24.0, NIGHT]
@@ -164,6 +164,7 @@ uniform vec4 uHole;    /* the clearing: centre.xy, radius, share of leaves that 
 varying vec2 vQ;
 varying float vKind;
 varying float vOcc;
+varying float vShape;
 void main(){
   vec2 cp = aC.xy - aC.z * uK;                         /* where this leaf's shadow falls */
   if (uTile.z > 0.) cp = uTile.xy + mod(cp - uTile.xy, uTile.zw);
@@ -176,20 +177,21 @@ void main(){
   vec3 w = aW * cos(fl) + cross(ln, aW) * sin(fl);     /* leaves turn about their midrib in the wind */
   vec3 off = aQ.x * aL + aQ.y * w;
   vec2 wp = cp + sway + off.xy - off.z * uK;
-  float keep = 1.;
+  float occ = aP.w;
   if (uHole.z > 0.) {
     float n = fract(sin(aP.y * 91.7) * 43758.5);
     float d = length((cp - uHole.xy) * vec2(.88, 1.)) / (uHole.z * (1. + .34 * (fract(aP.x * 13.1) - .5)));
-    if (d < 1. && n > uHole.w) keep = 0.;
+    if (n > uHole.w) occ *= smoothstep(.86, 1.14, d);    /* leaves thin out across the clearing's edge, never pop */
   }
-  vQ = aQ; vKind = aP.z; vOcc = aP.w;
-  gl_Position = keep > .5 ? vec4((wp - uRect.xy) * uRect.zw * 2. - 1., 0., 1.) : vec4(2., 2., 2., 1.);
+  vQ = aQ; vKind = aP.z; vOcc = occ; vShape = aP.x;
+  gl_Position = occ > .002 ? vec4((wp - uRect.xy) * uRect.zw * 2. - 1., 0., 1.) : vec4(2., 2., 2., 1.);
 }`;
 const FRAG_OCC = `
 precision mediump float;
 varying vec2 vQ;
 varying float vKind;
 varying float vOcc;
+varying float vShape;
 float aa(float e, float fw){
 #ifdef HAS_DERIV
   return clamp(e / max(fw, 1e-4) + .5, 0., 1.);
@@ -202,7 +204,8 @@ void main(){
   if (vKind < .5) {
     /* a leaf: a short petiole, then a pointed blade */
     float u = vQ.x;
-    float blade = pow(max(sin(3.14159 * clamp((u - .1) / .9, 0., 1.)), 0.), .72) * (1. - .18 * u);
+    float ex = mix(.55, 1.05, fract(vShape * 7.13)), tip = mix(.04, .34, fract(vShape * 3.71));
+    float blade = pow(max(sin(3.14159 * clamp((u - .1) / .9, 0., 1.)), 0.), ex) * (1. - tip * u);
     float w = u < .1 ? .07 : blade;
 #ifdef HAS_DERIV
     a = aa(w - abs(vQ.y), fwidth(vQ.y));
@@ -239,10 +242,10 @@ precision highp float;
 uniform vec4 uView;    /* origin.xy (light px), scale (light px per unit), time */
 uniform vec4 uRect;    /* occlusion maps: x0, y0, 1/w, 1/h */
 uniform vec4 uSun;     /* projected sun direction xy (unit), elongation 1/s.z, - */
-uniform vec4 uRad;     /* penumbra radius (wall units): -, -, mid canopy, far canopy */
-uniform vec2 uBias;    /* mip level: mid canopy, far canopy */
+uniform vec4 uRad;     /* penumbra radius (wall units): nearer branches, farther branches, mid canopy, far canopy */
+uniform vec4 uBias;    /* mip level: mid canopy, far canopy, farther branches, nearer branches */
 uniform vec4 uPool;    /* the clearing: centre.xy, radius, strength */
-uniform sampler2D uCan;    /* r: mid canopy, g: far canopy (mipmapped) */
+uniform sampler2D uCan;    /* r: mid canopy, g: far canopy, b: farther branches, a: nearer branches (mipmapped) */
 ${NOISE}
 vec2 tap(float i, float n, float rot){
   float r = sqrt((i + .5) / n);
@@ -262,7 +265,11 @@ void main(){
   float far = 0., mid = 0.;
   for (int i = 0; i < 40; i++) far += CANLOD(uCan, uv + E * tap(float(i), 40., rot) * uRad.w * sc, uBias.y).g;
   for (int i = 0; i < 28; i++) mid += CANLOD(uCan, uv + E * tap(float(i), 28., rot) * uRad.z * sc, uBias.x).r;
-  float V = (1. - far / 40.) * (1. - mid / 28.);   /* the sharp layers near the wall are done at full resolution */
+  float fb = 0.;
+  for (int i = 0; i < 24; i++) fb += CANLOD(uCan, uv + E * tap(float(i), 24., rot) * uRad.y * sc, uBias.z).b;
+  float nbr = 0.;
+  for (int i = 0; i < 20; i++) nbr += CANLOD(uCan, uv + E * tap(float(i), 20., rot) * uRad.x * sc, uBias.w).a;
+  float V = (1. - far / 40.) * (1. - mid / 28.) * (1. - fb / 24.) * (1. - nbr / 20.);   /* the sharper layers near the wall are done at full resolution */
   float dial = uPool.w * smoothstep(1.05, .55, length((p - uPool.xy) / uPool.z * vec2(.88, 1.)));
   float dith = (hash12(gl_FragCoord.xy + fract(uView.w * 7.3) * 91.7) - .5) / 255.;
   gl_FragColor = vec4(V * .5 + dith, dith, dial * .5, 1.);
@@ -283,13 +290,14 @@ uniform vec4 uCloud;   /* seconds since change, down, hold, up */
 uniform vec2 uCloud2;  /* depth, sweep lag */
 uniform vec2 uRelD;
 uniform vec2 uGlow;    /* bounce glow, vignette */
+uniform vec4 uFx;      /* dispersion along the light (uv), radial dispersion, bloom */
 uniform sampler2D uLight;
 uniform sampler2D uPlaster;
-uniform sampler2D uNear;    /* r: the vine and the clock, g: near branches, b: farther branches */
+uniform sampler2D uNear;    /* r: the vine and the clock */
 uniform vec3 uViewC;        /* wall units at full resolution: origin.xy, scale */
 uniform vec4 uRectN;        /* near map: x0, y0, 1/w, 1/h */
 uniform vec4 uSunN;         /* projected sun direction xy, elongation, - */
-uniform vec3 uRadN;         /* penumbra radius: clock and vine, near branches, farther branches */
+uniform vec3 uRadN;         /* penumbra radius: clock and vine, -, - */
 ${NOISE}
 vec2 ntap(float i, float n, float rot){
   float r = sqrt((i + .5) / n);
@@ -302,17 +310,16 @@ float nearVis(){
   mat2 E = mat2(uSunN.xy * uSunN.z, vec2(-uSunN.y, uSunN.x));
   float rot = hash12(gl_FragCoord.xy * .913) * 6.2832;
   vec2 sc = uRectN.zw;
-  float hd = 0., nb = 0., mb = 0.;
-  for (int i = 0; i < 6; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 6., rot) * uRadN.x * sc).r;
-  for (int i = 0; i < 10; i++) nb += texture2D(uNear, uv + E * ntap(float(i), 10., rot) * uRadN.y * sc).g;
-  for (int i = 0; i < 12; i++) mb += texture2D(uNear, uv + E * ntap(float(i), 12., rot) * uRadN.z * sc).b;
-  return (1. - hd / 6.) * (1. - nb / 10.) * (1. - mb / 12.);
+  float hd = 0.;
+  for (int i = 0; i < 10; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 10., rot) * uRadN.x * sc).r;
+  return 1. - hd / 10.;
 }
 void main(){
   vec2 uv = gl_FragCoord.xy / uRes;
   vec2 fromC = uv - .5;
 
-  vec2 ca = fromC * .0022;
+  /* light splits a little at its edges: red one way, blue the other (along the light, and outward like a lens) */
+  vec2 ca = fromC * uFx.z + uFx.xy;
   float Sr = texture2D(uLight, uv + ca).r * 2.;
   vec3  Lg = texture2D(uLight, uv).rgb;
   float Sg = Lg.r * 2.;
@@ -348,6 +355,13 @@ void main(){
   col += alb * vec3(.34, .40, .07) * tr * .16 * dot(sunC, vec3(.33));
   col += alb * sunC * uGlow.x * halo * .2;
 
+  /* bloom: bright patches spill softly into their surroundings */
+  float bl = 0.;
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * .7854 + .39;
+    bl += texture2D(uLight, uv + vec2(cos(a), sin(a) * uRes.x / uRes.y) * .016).r;
+  }
+  col += alb * sunC * uFx.w * smoothstep(.45, 1.15, bl * 2. / 8.);
   col = vec3(1.) - exp(-col * 1.12);
   col = pow(col, vec3(1. / 2.2));
 
@@ -932,9 +946,9 @@ function emitSeg(a, b, half, opacity) {
   putQuad(nearData, nearQ++, [a[0] - ex * ext, a[1] - ey * ext, a[2] - ez * ext],
     [ex * (1 + 2 * ext), ey * (1 + 2 * ext), ez * (1 + 2 * ext)], [-dy * half, dx * half, 0], [0, 0, 1, opacity]);
 }
-function emitLeaf(base, L, Wv, opacity) {
+function emitLeaf(base, L, Wv, opacity, shape) {
   if (nearQ >= NEAR_MAX) return;
-  putQuad(nearData, nearQ++, base, L, Wv, [0, 0, 0, opacity]);
+  putQuad(nearData, nearQ++, base, L, Wv, [shape === undefined ? 0.5 : shape % 1, 0, 0, opacity]);
 }
 /* the clearing: overlapping wide gaps around the sprig, breathing slightly */
 const CLEAR_LOBES = (() => {
@@ -959,7 +973,7 @@ function emitClearing(c, R, t) {
   }
 }
 /* a leaf in 3D: direction in the wall's plane plus a tilt, face toward the wall, turned about its midrib */
-function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity) {
+function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity, shape) {
   let Ld = [Math.cos(ang), Math.sin(ang), tz];
   const n0 = Math.hypot(Ld[0], Ld[1], Ld[2]); Ld = Ld.map(x => x / n0);
   let nr = [-Ld[2] * Ld[0], -Ld[2] * Ld[1], 1 - Ld[2] * Ld[2]];
@@ -967,7 +981,7 @@ function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity) {
   nr = rotAbout(nr, Ld, twist);
   const Wd = [Ld[1] * nr[2] - Ld[2] * nr[1], Ld[2] * nr[0] - Ld[0] * nr[2], Ld[0] * nr[1] - Ld[1] * nr[0]];
   const hw = ll * 0.30 * wf;
-  emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), opacity);
+  emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), opacity, shape);
 }
 
 /* A vine climbs across the wall a few centimetres out from it. The clock's
@@ -992,7 +1006,17 @@ function buildVine() {
   const twigs = [0.07, 0.17, 0.29, 0.38, 0.64, 0.73, 0.83, 0.93].map(u => ({
     u, ang: (r() < 0.5 ? -1 : 1) * (0.5 + 1.1 * r()), len: 0.07 + 0.12 * r(), nl: 3 + Math.floor(r() * 3),
     side: r() < 0.5 ? -1 : 1, ph: r() * 50, big: r() < 0.35 }));
-  VINE = { pts, twigs, holds: [0.21, 0.79], uk };
+  /* side twigs close to the clock stay small and plain, so the hands can be traced back to their knot */
+  for (const tw of twigs) if (Math.abs(tw.u - uk) < 0.16) { tw.len *= 0.6; tw.nl = Math.min(tw.nl, 3); tw.big = false; }
+  /* twigs near the clock grow to the side away from it */
+  for (const tw of twigs) {
+    const b = catmull(pts, tw.u), b2 = catmull(pts, Math.min(1, tw.u + 0.01));
+    if (Math.hypot(b[0] - PIVOT.x, b[1] - PIVOT.y) > 0.42) continue;
+    const va = Math.atan2(b2[1] - b[1], b2[0] - b[0]);
+    const end = a => Math.hypot(b[0] + Math.cos(a) * tw.len - PIVOT.x, b[1] + Math.sin(a) * tw.len - PIVOT.y);
+    if (end(va - tw.ang) > end(va + tw.ang)) tw.ang = -tw.ang;
+  }
+  VINE = { pts, twigs, uk };
 }
 function emitVine(t) {
   const V = VINE, N = 18;
@@ -1001,11 +1025,15 @@ function emitVine(t) {
   /* the vine: a mature stem, thicker than any of the clock's twigs */
   let prev = pt(0);
   for (let i = 1; i <= N; i++) { const p = pt(i / N); emitSeg(prev, p, 0.0060 - 0.0018 * Math.abs(i / N - 0.5) * 2, 1); prev = p; }
-  for (const h of V.holds) { const p = pt(h); emitSeg([p[0], p[1], 0], p, 0.0024, 1); }   /* holdfasts to the wall */
   /* a short stalk from the vine to the clock's knot */
   const vb = pt(V.uk), K = [PIVOT.x, PIVOT.y, Z0];
-  const mid = [(vb[0] + K[0]) / 2 + 0.008, (vb[1] + K[1]) / 2 - 0.004, (vb[2] + K[2]) / 2];
-  emitSeg(vb, mid, 0.0050, 1); emitSeg(mid, K, 0.0044, 1);
+  const c = [(vb[0] + K[0]) / 2 + 0.012, (vb[1] + K[1]) / 2 - 0.006, (vb[2] + K[2]) / 2];
+  let sp = vb;
+  for (let i = 1; i <= 4; i++) {
+    const u = i / 4, v = 1 - u;
+    const q = [0, 1, 2].map(j => v * v * vb[j] + 2 * v * u * c[j] + u * u * K[j]);
+    emitSeg(sp, q, 0.0036 - 0.0006 * u, 1); sp = q;
+  }
   const fl = flutterAt(0);
   for (const tw of V.twigs) {
     const b = pt(tw.u), b2 = pt(Math.min(1, tw.u + 0.01));
@@ -1017,29 +1045,29 @@ function emitVine(t) {
       const s = 0.35 + 0.65 * (k + 1) / tw.nl;
       const p = [b[0] + (e[0] - b[0]) * s, b[1] + (e[1] - b[1]) * s, b[2] + 0.012 * s];
       const side = k === tw.nl - 1 ? 0 : (k % 2 ? 1 : -1) * tw.side;
-      const ll = (tw.big ? 0.064 : 0.040) * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));
+      const ll = (tw.big ? 0.052 : 0.040) * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));   /* smaller than the hour hand's leaves */
       emitLeaf3D(p, a + side * 0.72 + fl * 0.12 * sn1(t * 1.25 + tw.ph + k), 0.25 * (side || 0.6), ll, tw.big ? 1.1 : 0.85,
-                 0.3 * (side || 1) + fl * 0.55 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96);
+                 0.3 * (side || 1) + fl * 0.55 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96, tw.ph * 0.173 + k * 0.29);
     }
   }
 }
 /* the second hand: a tendril, the thinnest thing on the wall, curling at its tip */
-function emitTendril(frac, len, t) {
+function emitTendril(frac, len, t, px) {
   const th = frac * Math.PI * 2 + 0.01 * sn1(t * 0.6 + 4.2);
   const dx = Math.sin(th), dy = Math.cos(th), nx = dy, ny = -dx;
   let p = [PIVOT.x, PIVOT.y, Z0];
-  const straight = 5, L0 = len * 0.84 / straight;
+  const straight = 8, L0 = len * 0.84 / straight;
   for (let i = 0; i < straight; i++) {
-    const f = (i + 1) / straight, w = 0.012 * Math.sin(f * 3.1) * len;
+    const f = (i + 1) / straight, w = len * (0.03 * Math.sin(f * 3.1) + 0.012 * Math.sin(f * 6.5 + 1.3));
     const q = [PIVOT.x + dx * L0 * (i + 1) + nx * w, PIVOT.y + dy * L0 * (i + 1) + ny * w, Z0 + 0.018 * f];
-    emitSeg(p, q, 0.0012 - 0.0003 * f, 1); p = q;
+    emitSeg(p, q, Math.max(0.0012 - 0.0003 * f, 0.6 * px), 1); p = q;
   }
   /* the curl: short steps turning ever tighter */
-  let a = Math.atan2(dy, dx), step = len * 0.05;
-  for (let i = 0; i < 5; i++) {
-    a += 0.75 + 0.18 * i; step *= 0.78;
-    const q = [p[0] + Math.cos(a) * step, p[1] + Math.sin(a) * step, p[2] + 0.002];
-    emitSeg(p, q, 0.0009, 1); p = q;
+  let a = Math.atan2(dy, dx), step = len * 0.024;
+  for (let i = 0; i < 14; i++) {
+    a += 0.30 + 0.045 * i; step *= 0.93;
+    const q = [p[0] + Math.cos(a) * step, p[1] + Math.sin(a) * step, p[2] + 0.001];
+    emitSeg(p, q, Math.max(0.0009, 0.55 * px), 1); p = q;
   }
 }
 
@@ -1049,23 +1077,38 @@ let MORE = [];
 function buildMoreBranches() {
   const r = mulberry(31337);
   MORE = [];
-  const hw = halfW, yb = yBot;
-  const mk = (x, y, ang, z, ch) => {
+  const hw = halfW, yb = yBot, R = Math.min(0.31, halfW * 0.78);
+  const make = (x, y, ang, z, ch) => {
     const nSeg = 5 + Math.floor(r() * 3), segs = [], leaves = [];
     for (let i = 0; i < nSeg; i++) segs.push({ len: (0.05 + 0.05 * r()) * (1 - i / (nSeg + 3)), curve: (r() - 0.5) * 0.45 });
     const nl = 8 + Math.floor(r() * 8);
     for (let k = 0; k < nl; k++) leaves.push({ s: 0.15 + 0.85 * (k + r() * 0.8) / nl, side: k % 2 ? 1 : -1, off: 0.45 + 0.5 * r(),
-      len: (0.042 + 0.034 * r()) * (z > 0.5 ? 1.25 : 1), wf: 0.85 + 0.3 * r(), ph: r() * 90, tz: (r() - 0.5) * 0.6 });
-    MORE.push({ x, y, ang, z, ch, segs, leaves, flex: 0.6 + 0.6 * r(), ph: r() * 100 });
+      len: (0.042 + 0.034 * r()) * (z > 1.0 ? 1.3 : 1.12), wf: 0.85 + 0.3 * r(), ph: r() * 90, tz: (r() - 0.5) * 0.6 });
+    return { x, y, ang, z, ch, segs, leaves, flex: 0.6 + 0.6 * r(), ph: r() * 100 };
+  };
+  /* no branch may reach into the clock's sweep, or it reads as a longer hand */
+  const clear = (B, minD) => {
+    let x = B.x, y = B.y, a = B.ang;
+    for (const sg of B.segs) {
+      a += sg.curve; x += Math.cos(a) * sg.len; y += Math.sin(a) * sg.len;
+      if (Math.hypot(x - PIVOT.x, y - PIVOT.y) < minD) return false;
+    }
+    return true;
+  };
+  const place = (gen, minD) => {
+    for (let tries = 0; tries < 24; tries++) { const B = gen(); if (clear(B, minD) || tries === 23) { MORE.push(B); return; } }
   };
   for (let i = 0; i < 6; i++) {
     const side = i % 4;
-    if (side === 0) mk(-hw - 0.04, yb + r() * (0.5 - yb), (r() - 0.5) * 1.2, 0.2 + 0.22 * r(), 1);
-    else if (side === 1) mk(hw + 0.04, yb + r() * (0.5 - yb), Math.PI + (r() - 0.5) * 1.2, 0.2 + 0.22 * r(), 1);
-    else if (side === 2) mk((r() * 2 - 1) * hw, 0.54, -Math.PI / 2 + (r() - 0.5) * 1.4, 0.2 + 0.22 * r(), 1);
-    else mk((r() * 2 - 1) * hw, yb - 0.04, Math.PI / 2 + (r() - 0.5) * 1.4, 0.2 + 0.22 * r(), 1);
+    place(() => {
+      const z = 0.55 + 0.4 * r();
+      if (side === 0) return make(-hw - 0.04, yb + r() * (0.5 - yb), (r() - 0.5) * 1.2, z, 1);
+      if (side === 1) return make(hw + 0.04, yb + r() * (0.5 - yb), Math.PI + (r() - 0.5) * 1.2, z, 1);
+      if (side === 2) return make((r() * 2 - 1) * hw, 0.54, -Math.PI / 2 + (r() - 0.5) * 1.4, z, 1);
+      return make((r() * 2 - 1) * hw, yb - 0.04, Math.PI / 2 + (r() - 0.5) * 1.4, z, 1);
+    }, R * 1.4);
   }
-  for (let i = 0; i < 6; i++) mk((r() * 2 - 1) * hw * 1.05, yb + r() * (0.55 - yb), r() * 6.2832, 0.55 + 0.55 * r(), 2);
+  for (let i = 0; i < 6; i++) place(() => make((r() * 2 - 1) * hw * 1.05, yb + r() * (0.55 - yb), r() * 6.2832, 1.25 + 0.75 * r(), 2), R * 1.1);
 }
 function emitMore(B, t, aK) {
   const fl = flutterAt(B.x);
@@ -1079,13 +1122,13 @@ function emitMore(B, t, aK) {
   }
   const n = B.segs.length, z = B.z;
   const w3 = p => [p[0] + z * aK[0], p[1] + z * aK[1], z];
-  for (let i = 0; i < n; i++) emitSeg(w3(pts[i]), w3(pts[i + 1]), (0.0055 - 0.0035 * i / n) * (z > 0.5 ? 1.3 : 1), 1);
+  for (let i = 0; i < n; i++) emitSeg(w3(pts[i]), w3(pts[i + 1]), (0.0055 - 0.0035 * i / n) * (z > 1.0 ? 1.5 : 1.25), 1);
   for (const L of B.leaves) {
     const f = L.s * n, i = Math.min(n - 1, Math.floor(f)), u = f - i;
     const p = [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u];
     let ang = pts[i + 1][2] + L.side * L.off + fl * (0.16 * sn1(t * 1.2 + L.ph) + 0.04 * sn1(t * 2.0 + L.ph * 2.1));
     ang += Math.atan2(Math.sin(-Math.PI / 2 - ang), Math.cos(-Math.PI / 2 - ang)) * 0.15;     /* leaves droop a little */
-    emitLeaf3D(w3(p), ang, L.tz, L.len, L.wf, 0.3 * L.side + fl * 0.55 * sn1(t * 0.7 + L.ph * 1.3), 0.95);
+    emitLeaf3D(w3(p), ang, L.tz, L.len, L.wf, 0.3 * L.side + fl * 0.55 * sn1(t * 0.7 + L.ph * 1.3), 0.95, L.ph * 0.137);
   }
 }
 
@@ -1112,7 +1155,7 @@ function emitBranch(B, leafArr, wArr, jArr, zBase, zTip, aK, th0, th1) {
     const ux = lx / len, uy = ly / len;
     const hw = len * 0.30 * wArr[(k >> 1) * 4 + (k & 1) * 2];
     emitLeaf([leafArr[o] - ux * len * 0.2 + z * aK[0], leafArr[o + 1] - uy * len * 0.2 + z * aK[1], z],
-             [ux * len * 1.2, uy * len * 1.2, len * 0.22 * Math.sin(lf.ph * 1.7)], [-uy * hw, ux * hw, 0], 0.95);
+             [ux * len * 1.2, uy * len * 1.2, len * 0.22 * Math.sin(lf.ph * 1.7)], [-uy * hw, ux * hw, 0], 0.95, lf.ph * 0.211);
   }
 }
 
@@ -1157,7 +1200,7 @@ function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale)
     nr = rotAbout(nr, Ld, 0.35 * (side || 1) + fl * 0.55 * sn1(t * (0.6 + i * 0.13) + ph * 1.7) + 0.2 * sn1(t * 0.2 + ph));
     const Wd = [Ld[1] * nr[2] - Ld[2] * nr[1], Ld[2] * nr[0] - Ld[0] * nr[2], Ld[0] * nr[1] - Ld[1] * nr[0]];
     const hw = ll * 0.30 * wf;
-    emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), 0.96);
+    emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), 0.96, seed * 0.31 + i * 0.37);
   }
 }
 
@@ -1270,23 +1313,23 @@ function frame(now) {
   const kl = Math.hypot(k[0], k[1]);
   const sd = kl > 1e-4 ? [k[0] / kl, k[1] / kl] : [0, 1];
   const penum = z => z * SUN_R / sz;
+  const lens = 1.5 * (0.5 - yBot) / H;           /* about 1.5 device pixels of defocus, in wall units */
 
   /* near the wall: the sprig that keeps time, and two branches */
   nearQ = 0;
   const R = Math.min(0.31, halfW * 0.78);
   const fr = handFracs();
   const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
-  emitSeg([PIVOT.x, PIVOT.y, 0], [PIVOT.x, PIVOT.y, Z0], 0.0026, 1);
   emitHand(fr.h, R * 0.62, 0.05, 0.010, 0.0046, 0.0030, HOUR_LEAVES, wt, sw * 0.8, 3.1, R / 0.31);
   emitHand(fr.m, R, -0.035, 0.016, 0.0030, 0.0014, MIN_LEAVES, wt, sw, 11.7, R / 0.31);
-  emitTendril(fr.s, R * 1.12, wt);
+  emitTendril(fr.s, R * 1.12, wt, (0.5 - yBot) / H);
   emitVine(wt);
   const handQ = nearQ;
   poseBranch(branchA, wt, 0, 0, leafA, leafWA, jointA);
   poseBranch(branchB, wt, 0, 0, leafB, leafWB, jointB);
-  const aK = [0.85 * k[0], 0.85 * k[1]];      /* the branches hang so their shadows stay near the corners */
-  emitBranch(branchA, leafA, leafWA, jointA, 0.34, 0.24, aK, 0.0052, 0.0018);
-  emitBranch(branchB, leafB, leafWB, jointB, 0.42, 0.30, aK, 0.0065, 0.0030);
+  const aK = [0.93 * k[0], 0.93 * k[1]];      /* the branches hang so their shadows stay near the corners */
+  emitBranch(branchA, leafA, leafWA, jointA, 0.85, 0.70, aK, 0.0060, 0.0024);
+  emitBranch(branchB, leafB, leafWB, jointB, 1.00, 0.85, aK, 0.0072, 0.0034);
   for (const B of MORE) if (B.ch === 1) emitMore(B, wt, aK);
   const branchQ = nearQ - handQ;
   for (const B of MORE) if (B.ch === 2) emitMore(B, wt, aK);
@@ -1326,6 +1369,10 @@ function frame(now) {
   gl.uniform4f(O.u('uW2'), -99, 0, 1, 0);
   drawQuads(nearBuf, handQ + branchQ + farBrQ, clearQ);
   gl.blendEquation(gl.FUNC_ADD);
+  gl.colorMask(false, false, true, false);      /* b: the farther branches */
+  drawQuads(nearBuf, handQ + branchQ, farBrQ);
+  gl.colorMask(false, false, false, true);      /* a: the nearer branches */
+  drawQuads(nearBuf, handQ, branchQ);
   gl.colorMask(true, true, true, true);
   gl.bindFramebuffer(gl.FRAMEBUFFER, nearT.fb);
   gl.bindTexture(gl.TEXTURE_2D, canT.tex);
@@ -1337,8 +1384,6 @@ function frame(now) {
   gl.uniform4f(O.u('uW2'), -99, 0, 1, 0);
   gl.uniform4f(O.u('uHole'), 0, 0, 0, 0);
   gl.colorMask(true, false, false, false); drawQuads(nearBuf, 0, handQ);
-  gl.colorMask(false, true, false, false); drawQuads(nearBuf, handQ, branchQ);
-  gl.colorMask(false, false, true, false); drawQuads(nearBuf, handQ + branchQ, farBrQ);
   gl.colorMask(true, true, true, true);
   occAttribs(false);
   gl.disable(gl.BLEND);
@@ -1356,11 +1401,12 @@ function frame(now) {
   gl.uniform4f(P.u('uSun'), sd[0], sd[1], 1 / sz, 0);
   const lpx = (0.5 - yBot) / lightFBO.h;
   const rMid = penum(1.3), rFar = penum(4.4);
-  gl.uniform4f(P.u('uRad'), 0, 0, rMid, rFar);
+  const rFb = Math.hypot(penum(1.6), lens), rNb = Math.hypot(penum(0.75), lens);
+  gl.uniform4f(P.u('uRad'), rNb, rFb, rMid, rFar);
   const tpu = canT.h / occRect[3];
   /* mip level where neighbouring taps just overlap: log2 of the tap spacing in texels */
   const bias = (r, n) => Math.max(0, Math.log2(Math.sqrt(Math.PI * (r * tpu) * (r * tpu) / sz / n)) + (lodMode ? 0.2 : -0.5));
-  gl.uniform2f(P.u('uBias'), bias(rMid, 28), bias(rFar, 40));
+  gl.uniform4f(P.u('uBias'), bias(rMid, 28), bias(rFar, 40), bias(rFb, 24), bias(rNb, 20));
   gl.uniform4f(P.u('uPool'), holeC[0], holeC[1], R * 1.12, clamp(0.55 + 0.45 * L.si, 0.7, 1));
   drawTri();
 
@@ -1376,7 +1422,7 @@ function frame(now) {
   gl.uniform2f(C.u('uRes'), W, H);
   gl.uniform2f(C.u('uPl'), plasterFBO.w, plasterFBO.h);
   gl.uniform1f(C.u('uDpr'), dpr);
-  gl.uniform1f(C.u('uGrainT'), motion < 1 ? 0 : Math.floor(t * 24) % 100000);
+  gl.uniform1f(C.u('uGrainT'), 0);              /* grain stays put: it is the paper, not film */
   const sI = L.si * 1.8 * (0.96 + 0.04 * Math.sin(t * 0.07)) * (1 - 0.18 * cloud);
   gl.uniform3f(C.u('uSunC'), L.sun[0] * sI, L.sun[1] * sI, L.sun[2] * sI);
   gl.uniform3f(C.u('uAmb'), L.amb[0], L.amb[1], L.amb[2]);
@@ -1385,13 +1431,14 @@ function frame(now) {
   gl.uniform4f(C.u('uCloud'), tt, T.down, T.hold, T.up);
   gl.uniform2f(C.u('uCloud2'), T.depth, T.lag);
   gl.uniform2f(C.u('uRelD'), sd[0], sd[1]);
+  gl.uniform4f(C.u('uFx'), sd[0] * 0.0032, sd[1] * 0.0032 * W / H, 0.007, 0.22);
   const fpx = (0.5 - yBot) / H;                  /* one device pixel, in wall units */
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, nearT.tex);
   gl.uniform1i(C.u('uNear'), 2);
   gl.uniform3f(C.u('uViewC'), 0.5 * W, (cssH - 0.5 * layoutH) * (H / cssH), layoutH * (H / cssH));
   gl.uniform4f(C.u('uRectN'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
   gl.uniform4f(C.u('uSunN'), sd[0], sd[1], 1 / sz, 0);
-  gl.uniform3f(C.u('uRadN'), Math.max(penum(Z0 + 0.01), 0.8 * fpx), Math.max(penum(0.32), fpx), Math.max(penum(0.85), fpx));
+  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), lens * 1.8), 0, 0);   /* the clock sits in the same soft focus as the rest */
   gl.uniform2f(C.u('uGlow'), L.glow, 0.20 + 0.10 * (1 - L.si));
   drawTri();
 
