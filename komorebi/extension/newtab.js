@@ -305,7 +305,7 @@ uniform sampler2D uNear;    /* r: the vine and the clock */
 uniform vec3 uViewC;        /* wall units at full resolution: origin.xy, scale */
 uniform vec4 uRectN;        /* near map: x0, y0, 1/w, 1/h */
 uniform vec4 uSunN;         /* projected sun direction xy, elongation, - */
-uniform vec3 uRadN;         /* penumbra radius: clock and vine, -, - */
+uniform vec3 uRadN;         /* blur radius of the clock layer, -, - */
 ${NOISE}
 vec2 ntap(float i, float n, float rot){
   float r = sqrt((i + .5) / n);
@@ -318,8 +318,8 @@ float nearVis(){
   mat2 E = mat2(uSunN.xy * uSunN.z, vec2(-uSunN.y, uSunN.x));
   vec2 sc = uRectN.zw;
   float hd = 0.;             /* a fixed tap pattern: thin moving lines don't sparkle across a per-pixel noise */
-  for (int i = 0; i < 16; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 16., .7) * uRadN.x * sc).r;
-  return 1. - hd / 16.;
+  for (int i = 0; i < 24; i++) hd += texture2D(uNear, uv + E * ntap(float(i), 24., .7) * uRadN.x * sc).r;
+  return 1. - hd / 24.;
 }
 void main(){
   vec2 uv = gl_FragCoord.xy / uRes;
@@ -557,7 +557,7 @@ function resize() {
 
   makeLightTarget();
   layoutBranches();
-  buildBearer();
+  buildHourBranch();
   buildMoreBranches();
   buildCanopy();
 
@@ -991,42 +991,53 @@ function emitLeaf3D(base, ang, tz, ll, wf, twist, opacity, shape) {
   emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), opacity, shape);
 }
 
-/* The clock grows at the tip of a thin branch that reaches in from the lower
-   left, close to the wall. The branch's side twigs look much like the hands,
-   so the time hides among them; only the three shoots at the tip keep time. */
-let BEARER = null;
-function buildBearer() {
+/* The hour hand is the branch itself. It reaches in from beyond the edge,
+   close to the wall, and ends in the knot where the minute and second twigs
+   grow, so from the knot outward it points at the hour. Its side twigs look
+   much like the hands, so the time hides among them, but they keep clear of
+   the knot.                                                                 */
+let HOURB = null;
+function buildHourBranch() {
   const r = mulberry(909);
   const Rh = Math.min(0.31, halfW * 0.78) * 0.7;
-  const S = [-halfW - 0.06, -0.46], K = [PIVOT.x, PIVOT.y];
-  const C = [S[0] * 0.45 + K[0] * 0.55 - 0.02, S[1] * 0.3 + K[1] * 0.7 + 0.03];      /* a gentle arch */
-  const N = 8, nodes = [];
-  for (let i = 0; i <= N; i++) {
-    const u = i / N, v = 1 - u;
-    let x = v * v * S[0] + 2 * v * u * C[0] + u * u * K[0];
-    let y = v * v * S[1] + 2 * v * u * C[1] + u * u * K[1];
-    if (i > 0 && i < N) { const j = (r() - 0.5) * 0.018; x += j * 0.6; y += j; }  /* a little crooked at each node */
-    nodes.push([x, y, Z0 + 0.05 * (1 - u) * (1 - u)]);   /* near the wall at the tip, a little farther out at the edge */
+  /* nodes as (along, across) from the knot, in the hand's own frame */
+  const N = 22, nodes = [[0, 0]];
+  for (let i = 1; i <= N; i++) {
+    const u = i * 0.1;
+    nodes.push([u, 0.02 * u * u + (r() - 0.5) * 0.016 * Math.min(1, u / 0.35)]);   /* a slight arch, crooked at each node */
   }
-  const twigs = [];
-  for (let i = 1; i < N - 1; i++) {
-    const b = nodes[i], d = Math.hypot(b[0] - K[0], b[1] - K[1]);
-    if (d < Rh * 1.35) continue;                        /* the tip belongs to the hands */
-    const dir = Math.atan2(nodes[i + 1][1] - b[1], nodes[i + 1][0] - b[0]);
-    const side = i % 2 ? 1 : -1;
-    const off = d < Rh * 2.4 ? 0.95 + 0.5 * r() : 0.5 + 0.6 * r();   /* near the tip they lean back, away from the clock */
-    twigs.push({ i, ang: dir + side * off, len: (0.05 + 0.07 * r()) * (Rh / 0.217), nl: 2 + Math.floor(r() * 3), side, ph: r() * 50 });
+  const twigs = [], leaves = [];
+  for (let i = 3; i < N; i++) {
+    const [u, v] = nodes[i];
+    if (u < Rh * 1.4 || r() < 0.35) continue;          /* the knot belongs to the hands */
+    const side = twigs.length % 2 ? 1 : -1;
+    const off = u < Rh * 2.4 ? 0.95 + 0.5 * r() : 0.5 + 0.6 * r();   /* near the knot they stand out sideways */
+    const a = Math.PI + side * off, len = (0.05 + 0.07 * r()) * (Rh / 0.217);   /* growing toward the knot */
+    if (Math.hypot(u + Math.cos(a) * len, v + Math.sin(a) * len) < Rh * 1.25) continue;
+    twigs.push({ i, a, len, nl: 2 + Math.floor(r() * 3), side, ph: r() * 50 });
   }
-  BEARER = { nodes, twigs, Rh };
+  for (let i = 3; i < N; i += 2) if (nodes[i][0] >= Rh * 1.3) leaves.push({ i, side: i % 4 === 1 ? -1 : 1 });
+  HOURB = { nodes, twigs, leaves };
 }
-function emitBearer(t) {
-  const B = BEARER, n = B.nodes.length - 1;
-  /* the branch: thicker than any of the clock's shoots, thinning toward the tip */
-  for (let i = 0; i < n; i++) emitSeg(B.nodes[i], B.nodes[i + 1], 0.0060 - 0.0020 * i / (n - 1), 1);
-  const fl = flutterAt(-0.3);
+function emitHourBranch(frac, t) {
+  const B = HOURB, th = frac * Math.PI * 2;
+  const d = [Math.sin(th), Math.cos(th)], n = [d[1], -d[0]];        /* 12 o'clock is up, clockwise */
+  const W3 = (u, v) => [PIVOT.x + d[0] * u + n[0] * v, PIVOT.y + d[1] * u + n[1] * v, Z0 + 0.03 * Math.min(1, u * u)];
+  const inView = (p, m) => { const q = proj(p); return q[0] > -halfW - m && q[0] < halfW + m && q[1] > yBot - m && q[1] < 0.5 + m; };
+  const wa = a => Math.PI / 2 - th - a;               /* an angle in the hand's frame, as an angle on the wall */
+  /* the branch: thicker than either twig, thickening toward the edge, until its shadow leaves the wall */
+  let last = 0;
+  for (let i = 0; i < B.nodes.length - 1; i++) {
+    const b = W3(...B.nodes[i + 1]);
+    emitSeg(W3(...B.nodes[i]), b, 0.0050 + 0.0016 * Math.min(1, B.nodes[i][0] / 0.9), 1);
+    last = i + 1;
+    if (!inView(b, 0.05)) break;
+  }
+  const fl = flutterAt(PIVOT.x + d[0] * 0.5);
   for (const tw of B.twigs) {
-    const b = B.nodes[tw.i];
-    const a = tw.ang + fl * 0.04 * sn1(t * 0.5 + tw.ph);
+    const b = W3(...B.nodes[tw.i]);
+    if (tw.i > last || !inView(b, 0.15)) continue;
+    const a = wa(tw.a) + fl * 0.04 * sn1(t * 0.5 + tw.ph);
     const e = [b[0] + Math.cos(a) * tw.len, b[1] + Math.sin(a) * tw.len, b[2] + 0.01];
     const m = [(b[0] + e[0]) / 2 - Math.sin(a) * tw.len * 0.06, (b[1] + e[1]) / 2 + Math.cos(a) * tw.len * 0.06, b[2] + 0.005];
     emitSeg(b, m, 0.0028, 1); emitSeg(m, e, 0.0020, 1);
@@ -1034,17 +1045,16 @@ function emitBearer(t) {
       const s = 0.4 + 0.6 * (k + 1) / tw.nl;
       const p = [b[0] + (e[0] - b[0]) * s, b[1] + (e[1] - b[1]) * s, b[2] + 0.01 * s];
       const side = k === tw.nl - 1 ? 0 : (k % 2 ? 1 : -1) * tw.side;
-      const ll = 0.032 * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));     /* smaller than the hour hand's leaves */
+      const ll = 0.032 * (0.85 + 0.3 * ((k * 0.37 + tw.ph) % 1));
       emitLeaf3D(p, a + side * 0.72 + fl * 0.12 * sn1(t * 1.25 + tw.ph + k), 0.22 * (side || 0.6), ll, 0.8,
                  0.25 * (side || 1) + fl * 0.5 * sn1(t * (0.55 + 0.08 * k) + tw.ph * 1.7), 0.96, tw.ph * 0.173 + k * 0.29);
     }
   }
   /* a few leaves straight off the branch */
-  for (let i = 1; i < n - 1; i += 2) {
-    const b = B.nodes[i];
-    if (Math.hypot(b[0] - PIVOT.x, b[1] - PIVOT.y) < B.Rh * 1.3) continue;
-    const dir = Math.atan2(B.nodes[i + 1][1] - b[1], B.nodes[i + 1][0] - b[0]), side = i % 4 === 1 ? -1 : 1;
-    emitLeaf3D(b, dir + side * 1.0, 0.2 * side, 0.034, 0.85, 0.3 * side + fl * 0.5 * sn1(t * 0.7 + i), 0.95, 0.4 + i * 0.13);
+  for (const lf of B.leaves) {
+    const b = W3(...B.nodes[lf.i]);
+    if (lf.i > last || !inView(b, 0.1)) continue;
+    emitLeaf3D(b, wa(Math.PI) + lf.side * 1.0, 0.2 * lf.side, 0.034, 0.85, 0.3 * lf.side + fl * 0.5 * sn1(t * 0.7 + lf.i), 0.95, 0.4 + lf.i * 0.13);
   }
 }
 
@@ -1053,12 +1063,22 @@ const SEC_KINKS = [0.05, -0.07, 0.04, -0.05, 0.06, -0.03];
 function emitSecondTwig(frac, len, t, px) {
   let a = frac * Math.PI * 2 + 0.01 * sn1(t * 0.6 + 4.2);
   let p = [PIVOT.x, PIVOT.y, Z0];
-  const n = SEC_KINKS.length, L0 = len / n;
+  const n = SEC_KINKS.length, L0 = len / n, pts = [p], dirs = [];
   for (let i = 0; i < n; i++) {
     const f = (i + 1) / n;
     const d = a + SEC_KINKS[i];                         /* each node turns it a few degrees */
     const q = [p[0] + Math.sin(d) * L0, p[1] + Math.cos(d) * L0, Z0 + 0.016 * f];
     emitSeg(p, q, Math.max(0.0013 - 0.0005 * f, 1.0 * px), 1); p = q;
+    pts.push(q); dirs.push(Math.PI / 2 - d);            /* direction in the wall's x/y angle convention */
+  }
+  /* a few small leaves, rounder than the minute hand's willow leaves */
+  const fl = flutterAt(PIVOT.x), ll = 0.036 * (len / 0.341);
+  const SEC_LEAVES = [[3, 1], [5, -1], [6, 0]];         /* node index, side (0: at the tip) */
+  for (let k = 0; k < SEC_LEAVES.length; k++) {
+    const [ni, side] = SEC_LEAVES[k];
+    const ang = dirs[ni - 1] + side * 0.7 + fl * 0.12 * sn1(t * 1.1 + k * 2.3);
+    emitLeaf3D(pts[ni], ang, 0.12 * (side || 0.5), ll * (side ? 0.9 : 1.05), 0.75,
+               0.2 * (side || 1) + fl * 0.4 * sn1(t * 0.6 + k * 1.7), 0.95, 0.24 + 0.01 * k);
   }
 }
 
@@ -1150,13 +1170,12 @@ function emitBranch(B, leafArr, wArr, jArr, zBase, zTip, aK, th0, th1) {
   }
 }
 
-/* The clock: a short stem grows out of the wall (its shadow is a little gnomon);
-   from its knot a short twig with broad leaves points at the hour and a long
-   slender one at the minute. No numerals, no dial.                           */
+/* The clock: the knot at the tip of the hour branch. A long slender twig grows
+   from it toward the minute, and the thinnest one toward the second.
+   No numerals, no dial.                                                      */
 const PIVOT = { x: 0, y: -0.01 };
 const Z0 = 0.014;                            /* the knot at the branch tip, about 2 cm out from the wall */
 /* leaves along a twig: s along the stem (0..1), side, angle off the stem, length, width */
-const HOUR_LEAVES = [[0.45, 1, 0.85, 0.060, 0.90], [0.65, -1, 0.75, 0.068, 0.95], [0.84, 1, 0.60, 0.072, 0.92], [1.0, 0, 0.0, 0.080, 0.95]];
 const MIN_LEAVES = [[0.58, -1, 0.65, 0.036, 0.50], [0.74, 1, 0.58, 0.040, 0.55], [0.88, -1, 0.50, 0.042, 0.55], [1.0, 0, 0.0, 0.048, 0.60]];
 function handFracs() {
   const d = new Date();
@@ -1171,9 +1190,8 @@ function handFracs() {
   const sec = d.getSeconds() + d.getMilliseconds() / 1000;      /* the second hand always follows the real seconds */
   return { h: ((hh % 12) + mm / 60 + ss / 3600) / 12, m: (mm + ss / 60) / 60, s: sec / 60 };
 }
-function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale, flat) {
-  /* flat: how squarely the leaves face the wall (the hour hand's broad leaves must read as broad at any sun) */
-  const tilt = flat ? 0.12 : 0.28, turn = flat ? 0.12 : 0.35, flutterTurn = flat ? 0.3 : 0.55;
+function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale) {
+  const tilt = 0.28, turn = 0.35, flutterTurn = 0.55;
   const th = frac * Math.PI * 2 + sway;
   const dx = Math.sin(th), dy = Math.cos(th), nx = dy, ny = -dx;     /* 12 o'clock is up, clockwise */
   const K = [PIVOT.x, PIVOT.y, Z0];
@@ -1325,10 +1343,9 @@ function frame(now) {
   const Rh = R * 0.7;                          /* the sprig is smaller than the clearing it sits in */
   const fr = handFracs();
   const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
-  emitHand(fr.h, Rh * 0.62, 0.05, 0.010, 0.0040, 0.0026, HOUR_LEAVES, wt, sw * 0.8, 3.1, Rh / 0.31, true);
+  emitHourBranch(fr.h, wt);
   emitHand(fr.m, Rh, -0.035, 0.016, 0.0034, 0.0018, MIN_LEAVES, wt, sw, 11.7, Rh / 0.31);
   emitSecondTwig(fr.s, Rh * 1.1, wt, (0.5 - yBot) / H);
-  emitBearer(wt);
   const handQ = nearQ;
   poseBranch(branchA, wt, 0, 0, leafA, leafWA, jointA);
   poseBranch(branchB, wt, 0, 0, leafB, leafWB, jointB);
@@ -1444,7 +1461,7 @@ function frame(now) {
   gl.uniform3f(C.u('uViewC'), 0.5 * W, (cssH - 0.5 * layoutH) * (H / cssH), layoutH * (H / cssH));
   gl.uniform4f(C.u('uRectN'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
   gl.uniform4f(C.u('uSunN'), sd[0], sd[1], 1 / sz, 0);
-  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), lens * 1.8), 0, 0);   /* the clock sits in the same soft focus as the rest */
+  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), 3.4 / layoutH), 0, 0);   /* the clock out of focus by about 3.4 CSS px */
   gl.uniform2f(C.u('uGlow'), L.glow, 0.20 + 0.10 * (1 - L.si));
   drawTri();
 
