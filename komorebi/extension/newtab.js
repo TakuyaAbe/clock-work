@@ -1515,7 +1515,7 @@ function setupDebugBar() {
   if (!dbg.on) return;
   const st = document.createElement('style');
   st.textContent = `
-#kc-dbg{position:fixed;left:16px;right:52px;bottom:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;
+#kc-dbg{position:fixed;left:16px;right:56px;bottom:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;
   background:rgba(20,22,26,.72);color:#eee;font:12px/1 -apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
   border-radius:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:10;user-select:none}
 #kc-dbg button,#kc-dbg select{background:rgba(255,255,255,.12);color:#eee;border:1px solid rgba(255,255,255,.2);border-radius:6px;
