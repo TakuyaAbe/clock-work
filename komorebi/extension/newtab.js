@@ -147,219 +147,123 @@ void main(){
   gl_FragColor = vec4(clamp(h0, 0., 1.), clamp(n * .5 + .5, 0., 1.), mottle);
 }`;
 
-/* Light field: direct light through the canopy, with the time opening it. */
+/* Occlusion: 3D leaves and twigs, cast along the sun onto the plane of the wall.
+   A point at distance z from the wall lands at P.xy - z * k, with k = s.xy / s.z. */
+const VERT_OCC = `
+attribute vec2 aQ;     /* corner: u along the blade (0..1), v across (-1..1) */
+attribute vec3 aC;     /* leaf base / segment start: wall units, z = distance from the wall */
+attribute vec3 aL;     /* length vector */
+attribute vec3 aW;     /* half-width vector */
+attribute vec4 aP;     /* cluster phase, leaf phase, kind (0 leaf, 1 twig), opacity */
+uniform vec2 uK;
+uniform vec4 uRect;    /* occlusion map: x0, y0, 1/w, 1/h */
+uniform vec4 uTile;    /* canopy wrap: origin.xy, size.xy (size 0: no wrap) */
+uniform vec4 uW1;      /* sway.xy, time, flutter */
+uniform vec4 uW2;      /* gust x, gust amplitude, gust direction, - */
+uniform vec4 uHole;    /* the clearing: centre.xy, radius, share of leaves that stay inside */
+varying vec2 vQ;
+varying float vKind;
+varying float vOcc;
+void main(){
+  vec2 cp = aC.xy - aC.z * uK;                         /* where this leaf's shadow falls */
+  if (uTile.z > 0.) cp = uTile.xy + mod(cp - uTile.xy, uTile.zw);
+  float gx = (cp.x - uW2.x) * 1.5;
+  float g = uW2.y * exp(-gx * gx);
+  float ph = aP.x * 6.2832;
+  vec2 sway = uW1.xy * (1. + .6 * sin(uW1.z * .9 + ph)) + vec2(uW2.z, .3) * g * .025;
+  float fl = (uW1.w + .9 * g) * sin(uW1.z * (2.1 + 1.8 * fract(aP.y * 7.31)) + aP.y * 40.);
+  vec3 ln = normalize(aL);
+  vec3 w = aW * cos(fl) + cross(ln, aW) * sin(fl);     /* leaves turn about their midrib in the wind */
+  vec3 off = aQ.x * aL + aQ.y * w;
+  vec2 wp = cp + sway + off.xy - off.z * uK;
+  float keep = 1.;
+  if (uHole.z > 0.) {
+    float n = fract(sin(aP.y * 91.7) * 43758.5);
+    float d = length((cp - uHole.xy) * vec2(.88, 1.)) / (uHole.z * (1. + .34 * (fract(aP.x * 13.1) - .5)));
+    if (d < 1. && n > uHole.w) keep = 0.;
+  }
+  vQ = aQ; vKind = aP.z; vOcc = aP.w;
+  gl_Position = keep > .5 ? vec4((wp - uRect.xy) * uRect.zw * 2. - 1., 0., 1.) : vec4(2., 2., 2., 1.);
+}`;
+const FRAG_OCC = `
+precision mediump float;
+varying vec2 vQ;
+varying float vKind;
+varying float vOcc;
+float aa(float e, float fw){
+#ifdef HAS_DERIV
+  return clamp(e / max(fw, 1e-4) + .5, 0., 1.);
+#else
+  return step(0., e);
+#endif
+}
+void main(){
+  float a = 1.;
+  if (vKind < .5) {
+    /* a leaf: a short petiole, then a pointed blade */
+    float u = vQ.x;
+    float blade = pow(max(sin(3.14159 * clamp((u - .1) / .9, 0., 1.)), 0.), .72) * (1. - .18 * u);
+    float w = u < .1 ? .07 : blade;
+#ifdef HAS_DERIV
+    a = aa(w - abs(vQ.y), fwidth(vQ.y));
+#else
+    a = aa(w - abs(vQ.y), 0.);
+#endif
+  } else if (vKind > 1.5) {
+    /* a gap between leaves: an ellipse */
+    float e = 1. - length(vec2(vQ.x * 2. - 1., vQ.y));
+#ifdef HAS_DERIV
+    a = aa(e, fwidth(e));
+#else
+    a = aa(e, 0.);
+#endif
+  }
+  if (a <= 0.) discard;
+  gl_FragColor = vec4(vOcc * a);
+}`;
+
+/* Light on the wall: the sun is a disc, so each layer's shadow is its occlusion
+   averaged over the sun's image, an ellipse that grows with distance from the wall. */
 const FRAG_LIGHT = `
 precision highp float;
+#ifdef HAS_LOD
+#define CANLOD texture2DLodEXT
+#else
+#define CANLOD texture2D
+#endif
 uniform vec4 uView;    /* origin.xy (light px), scale (light px per unit), time */
-uniform vec4 uSunG;    /* parallax.xy, gustX, gustAmp */
-uniform vec4 uSway;    /* far.xy, mid.xy */
-uniform vec4 uMisc;    /* gustDir, flutterBase, haze, outside openness */
-uniform vec4 uAxis;    /* ellipse axis.xy, sqrt(elongation), softness */
-uniform vec4 uPool;    /* the sun's pool: centre.xy (wall units), radius, strength */
-uniform vec4 uShad;    /* near shadow offset.xy, near blur, breathing */
-uniform vec2 uBrSc;
-uniform vec4 uLA[16];
-uniform vec4 uWA[8];
-uniform vec4 uJA[4];
-uniform vec4 uLB[12];
-uniform vec4 uWB[6];
-uniform vec4 uJB[3];
+uniform vec4 uRect;    /* occlusion maps: x0, y0, 1/w, 1/h */
+uniform vec4 uSun;     /* projected sun direction xy (unit), elongation 1/s.z, - */
+uniform vec4 uRad;     /* penumbra radius (wall units): twig hands, near branches, mid canopy, far canopy */
+uniform vec2 uBias;    /* mip level: mid canopy, far canopy */
+uniform vec4 uPool;    /* the clearing: centre.xy, radius, strength */
+uniform sampler2D uNear;   /* r: twig hands, g: near branches */
+uniform sampler2D uCan;    /* r: mid canopy, g: far canopy (mipmapped) */
 ${NOISE}
-
-float hash11(float p){ p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p); }
-float n1(float x){ float i = floor(x), f = fract(x); f = f * f * (3. - 2. * f); return mix(hash11(i), hash11(i + 1.), f); }
-float gapLo(vec2 p){
-  vec2 x = p * .92 + vec2(3.1, 7.7);
-  return .5 * vnoise(x) + .25 * vnoise(mat2(1.6, 1.2, -1.2, 1.6) * x) + .094;
+vec2 tap(float i, float n, float rot){
+  float r = sqrt((i + .5) / n);
+  float a = i * 2.39996 + rot;
+  return vec2(cos(a), sin(a)) * r;
 }
-float poolAt(vec2 q){ vec2 d = (q - uPool.xy) * vec2(.72, 1.); return uPool.w * exp(-dot(d, d) / (uPool.z * uPool.z)); }
-
-/* one pinhole image: area-preserving ellipse along the sun axis, soft rim */
-float spot(vec2 dv, vec2 ax, float sel, float r, float soft){
-  vec2 pr = vec2(-ax.y, ax.x);
-  float e = length(vec2(dot(dv, ax) / sel, dot(dv, pr) * sel)) / r;
-  return (1. - smoothstep(1. - soft, 1., e)) * (1. - .08 * e * e);
-}
-
-/* sparse canopy pinholes */
-float spots(vec2 p, vec2 toGap, vec2 toWall, float sc, float rmin, float rmax, float soft, float seed,
-            vec2 ax, float sel, float flut, float t, float open){
-  vec2 q = p * sc;
-  vec2 ci = floor(q), cf = fract(q);
-  float acc = 0.;
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      vec2 o = vec2(float(i), float(j));
-      vec2 c = ci + o;
-      float k = hash12(c * 1.37 + seed * 3.1);
-      /* existence is decided per cell from uniform offsets only, so no spot is ever cut in half */
-      float dens = (.16 + .84 * smoothstep(.40, .58, gapLo((c + .5) / sc + toGap))) * open * (1. + .6 * poolAt((c + .5) / sc + toWall));
-      if (k > dens * .85) continue;
-      vec2 h = hash22(c + seed);
-      float ph = k * 61.7;
-      vec2 wob = vec2(n1(t * (1.1 + h.x) + ph), n1(t * (.9 + h.y) + ph + 17.)) * 2. - 1.;
-      vec2 dv = o + .5 + (h - .5) * .72 + flut * .07 * wob - cf;
-      float fl = n1(t * (.5 + 1.4 * h.x) + ph * 1.7);
-      float opn = 1. - (.10 + .55 * flut) * smoothstep(.45, .9, fl) * step(.45, h.x);
-      acc += spot(dv, ax, sel, mix(rmin, rmax, h.y), soft) * opn * (.55 + .45 * fract(k * 13.7 + h.x * 3.1));
-    }
-  }
-  return acc;
-}
-
-/* fine pinholes scattered over the wall, gathering where the canopy thins */
-float fspots(vec2 p, vec2 toWall, float sc, float seed, vec2 ax, float sel, float soft, float flut, float t, float base){
-  vec2 q = p * sc;
-  vec2 ci = floor(q), cf = fract(q);
-  float acc = 0.;
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      vec2 o = vec2(float(i), float(j));
-      vec2 c = ci + o;
-      vec2 h = hash22(c + seed);
-      vec2 jit = (h - .5) * .62;           /* jitter + radius stay inside the 3x3 search: no clipped spots */
-      vec2 w = (c + .5 + jit) / sc + toWall;
-      float dn = base * (.3 + .7 * smoothstep(.28, .72, vnoise(w * 2.6 + seed))) + .3 * poolAt(w);
-      float k = hash12(c * 1.37 + seed * 3.1);
-      if (k > dn) continue;
-      float ph = k * 61.7;
-      vec2 wob = vec2(n1(t * (1.1 + h.x) + ph), n1(t * (.9 + h.y) + ph + 17.)) * 2. - 1.;
-      vec2 dv = o + .5 + jit + flut * .09 * wob - cf;
-      float fl = n1(t * (.6 + 1.2 * h.y) + ph * 1.3);
-      float opn = 1. - (.08 + .4 * flut) * smoothstep(.5, .92, fl) * step(.5, h.y);
-      float r = mix(.22, .48, h.y * h.y * h.y);
-      acc += spot(dv, ax, sel, r, min(soft * 1.7, .8)) * opn * (.38 + .62 * fract(k * 13.7 + h.x * 3.1));
-    }
-  }
-  return acc;
-}
-
-float clusters(vec2 p, float sc, float seed, float flut, float t){
-  vec2 q = p * sc;
-  vec2 ci = floor(q), cf = fract(q);
-  float cov = 0.;
-  for (int j = -1; j <= 1; j++) {
-    for (int i = -1; i <= 1; i++) {
-      vec2 o = vec2(float(i), float(j));
-      vec2 c = ci + o;
-      float k = hash12(c * 1.71 + seed);
-      float dn = vnoise(c * .23 + seed * .7);
-      if (k > smoothstep(.22, .78, dn) * .95) continue;
-      vec2 h = hash22(c * 1.13 + seed);
-      vec2 wob = vec2(n1(t * .8 + k * 40.), n1(t * .7 + k * 57.)) * 2. - 1.;
-      vec2 dv = cf - (o + .5 + (h - .5) * .8 + flut * .05 * wob);
-      float ang = h.x * 6.283 + .22 * flut * (n1(t * .6 + k * 23.) * 2. - 1.);
-      vec2 cs = vec2(cos(ang), sin(ang));
-      vec2 rv = vec2(dot(dv, cs), dot(dv, vec2(-cs.y, cs.x)));
-      float rx = mix(.45, .80, h.y);
-      float ry = rx * mix(.35, .62, k / .95);
-      float e = length(rv / vec2(rx, ry));
-      cov = max(cov, 1. - smoothstep(.55, 1., e));
-    }
-  }
-  return cov;
-}
-
-float leafCov(vec2 p, vec4 L, vec2 W, float soft){
-  float len = length(L.zw);
-  vec2 cs = L.zw / len;
-  vec2 d = p - L.xy;
-  vec2 bc = d - cs * (len * .4);
-  float rr = len * .64 + soft * 2.;
-  if (dot(bc, bc) > rr * rr) return 0.;
-  vec2 q = vec2(cs.x * d.x + cs.y * d.y, -cs.y * d.x + cs.x * d.y);
-  float u = clamp(q.x / len, 0., 1.);
-  float w = len * .74 * W.x * pow(max(u, 1e-4), .5) * pow(max(1. - u, 1e-4), .85);
-  float qy = q.y - len * W.y * u * u * .3;
-  float dl = max(abs(qy) - w, max(-q.x, q.x - len));
-  float pet = len * .2;
-  float dp = max(abs(q.y) - .0011, max(-q.x - pet, q.x));
-  return 1. - smoothstep(-soft, soft, min(dl, dp));
-}
-
-float segCov(vec2 p, vec2 a, vec2 b, float th, float soft){
-  vec2 pa = p - a, ba = b - a;
-  float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
-  return 1. - smoothstep(-soft, soft, length(pa - ba * h) - th);
-}
-
 void main(){
   vec2 p = (gl_FragCoord.xy - uView.xy) / uView.z;
-  float t = uView.w;
-  vec2 sun = uSunG.xy;
-  float gdir = uMisc.x;
-  float open = uMisc.w;
-
-  float gx = (p.x - uSunG.z) * 1.5;
-  float g = uSunG.w * exp(-gx * gx) * (.7 + .6 * vnoise(p * 1.4 - vec2(t * .21 * gdir, 0.)));
-  vec2 gv = vec2(gdir, .32) * g;
-  float flut = uMisc.y + .78 * clamp(g * 1.3, 0., 1.);
-
-  vec2 ax = uAxis.xy;
-  float sel = uAxis.z;
-  float soft = uAxis.w + .2 * uMisc.z;
-  vec2 drift = vec2(t * .0009, t * .0004);
-
-  /* the sun's pool: where the canopy thins; it wanders a little with the wind */
-  vec2 br = vec2(vnoise(p * 2.3 + vec2(t * .11, 1.3)), vnoise(p * 2.3 + vec2(4.7, -t * .09))) - .5;
-  vec2 woff = uSway.zw * 1.2 + gv * .03 + br * .03 * uShad.w;
-  float pool = poolAt(p + woff) * (.55 + .75 * vnoise(p * 1.6 + vec2(3.3, t * .006)));
-
-  /* far canopy: gaps and pinholes, opening up around the pool */
-  vec2 pf = p + sun * .10 + uSway.xy + gv * .016 + drift;
-  float gapN = fbm(pf * .92 + vec2(3.1, 7.7)) + .05 * p.x + .03 * p.y;
-  float gap = smoothstep(.66 - .12 * pool, .84 - .10 * pool, gapN) * (.25 + 1.2 * open);
-  vec2 toW1 = -(sun * .10 + uSway.xy + drift);
-  float s1 = spots(pf, vec2(0.), toW1, 5.2, .31, .36, soft, 1., ax, sel, flut, t, open) * .8;
-  vec2 pf2 = p + sun * .07 + uSway.xy * 1.45 + gv * .026 + drift * .7;
-  vec2 toW2 = -(sun * .07 + uSway.xy * 1.45 + drift * .7);
-  float s2 = spots(pf2, toW2 - toW1, toW2, 10.5, .31, .36, soft, 17., ax, sel * .97, flut, t, open);
-  float far = gap + (1. - gap) * (s1 + .7 * s2);
-
-  /* fine pinholes scattered everywhere, more of them in the pool */
-  vec2 pd = p + sun * .05 + uSway.zw * .9 + gv * .02 + drift * .5;
-  float fs = .7 * fspots(pd, -(sun * .05 + uSway.zw * .9 + drift * .5), 21., 5., ax, sel, soft, flut, t, .08 + .25 * open);
-  far += fs * (1. - .45 * min(far, 1.));
-
-  vec2 pm = p + sun * .05 + uSway.zw + gv * .03 + drift * .5;
-  float mid = max(clusters(pm, 4.2, 3.7, flut, t), .9 * clusters(pm + vec2(.37, .11), 8.6, 11.3, flut, t));
-  mid *= (.55 + .45 * (1. - open)) * (1. - .3 * min(pool, 1.));
-
-  /* near branches; their shadows stretch with a low sun */
-  vec2 pn = p + uShad.xy;
-  float nA = 0., nB = 0.;
-  float sA = .0030 * uShad.z, sB = .018 * uShad.z;
-  for (int i = 0; i < 8; i++) {
-    vec4 W = uWA[i];
-    nA = max(nA, leafCov(pn, uLA[2 * i], W.xy, sA));
-    nA = max(nA, leafCov(pn, uLA[2 * i + 1], W.zw, sA));
-  }
-  for (int i = 0; i < 3; i++) {
-    vec4 J = uJA[i], K = uJA[i + 1];
-    float f0 = float(2 * i);
-    nA = max(nA, segCov(pn, J.xy, J.zw, mix(.0052, .0018, f0 / 6.) * uBrSc.x, .0026 * uShad.z));
-    nA = max(nA, segCov(pn, J.zw, K.xy, mix(.0052, .0018, (f0 + 1.) / 6.) * uBrSc.x, .0026 * uShad.z));
-  }
-  nA = max(nA, segCov(pn, uJA[3].xy, uJA[3].zw, .0018 * uBrSc.x, .0026 * uShad.z));
-  vec2 pnB = p + uShad.xy * 1.6;
-  for (int i = 0; i < 6; i++) {
-    vec4 W = uWB[i];
-    nB = max(nB, leafCov(pnB, uLB[2 * i], W.xy, sB));
-    nB = max(nB, leafCov(pnB, uLB[2 * i + 1], W.zw, sB));
-  }
-  for (int i = 0; i < 2; i++) {
-    vec4 J = uJB[i], K = uJB[i + 1];
-    float f0 = float(2 * i);
-    nB = max(nB, segCov(pnB, J.xy, J.zw, mix(.0065, .003, f0 / 4.) * uBrSc.y, .016 * uShad.z));
-    nB = max(nB, segCov(pnB, J.zw, K.xy, mix(.0065, .003, (f0 + 1.) / 4.) * uBrSc.y, .016 * uShad.z));
-  }
-  nB = max(nB, segCov(pnB, uJB[2].xy, uJB[2].zw, .003 * uBrSc.y, .016 * uShad.z));
-
-  float S = far * (1. - mid * .88) * (1. - nA * .9) * (1. - nB * .45);
-  float tr = min(far, 1.) * (1. - mid) * max(nA * .9, nB * .3);
-
-  float dith = (hash12(gl_FragCoord.xy + fract(t * 7.3) * 91.7) - .5) / 255.;
-  gl_FragColor = vec4(S * .5 + dith, tr + dith, min(pool, 1.) * .5, 1.);
+  vec2 uv = (p - uRect.xy) * uRect.zw;
+  mat2 E = mat2(uSun.xy * uSun.z, vec2(-uSun.y, uSun.x));
+#ifdef HAS_LOD
+  float rot = hash12(gl_FragCoord.xy) * 6.2832;   /* rotated per pixel: noise instead of banding */
+#else
+  float rot = 0.;                                 /* without explicit LOD, keep taps coherent so mips stay sane */
+#endif
+  vec2 sc = uRect.zw;
+  float far = 0., mid = 0., nb = 0., hd = 0.;
+  for (int i = 0; i < 40; i++) far += CANLOD(uCan, uv + E * tap(float(i), 40., rot) * uRad.w * sc, uBias.y).g;
+  for (int i = 0; i < 28; i++) mid += CANLOD(uCan, uv + E * tap(float(i), 28., rot) * uRad.z * sc, uBias.x).r;
+  for (int i = 0; i < 10; i++) nb += texture2D(uNear, uv + E * tap(float(i), 10., rot) * uRad.y * sc).g;
+  for (int i = 0; i < 5; i++) hd += texture2D(uNear, uv + E * tap(float(i), 5., rot) * uRad.x * sc).r;
+  float V = (1. - far / 40.) * (1. - mid / 28.) * (1. - nb / 10.) * (1. - hd / 5.);
+  float dial = uPool.w * smoothstep(1.05, .55, length((p - uPool.xy) / uPool.z * vec2(.88, 1.)));
+  float dith = (hash12(gl_FragCoord.xy + fract(uView.w * 7.3) * 91.7) - .5) / 255.;
+  gl_FragColor = vec4(V * .5 + dith, dith, dial * .5, 1.);
 }`;
 
 /* Composite: plaster, sky fill, sun of the hour, passing cloud, lens, grain. */
@@ -473,7 +377,8 @@ function program(vs, fs) {
   return { p, u: name => (name in cache ? cache[name] : (cache[name] = gl.getUniformLocation(p, name))) };
 }
 
-let progPlaster, progLight, progComp, progMote, triBuf, moteBuf;
+let progPlaster, progLight, progComp, progMote, progOcc, triBuf, moteBuf, quadIdx, canBuf, nearBuf, occAttr;
+let canT = null, nearT = null, occRect = [-1, -1, 2, 2], lodMode = false;
 let lightFBO = null, plasterFBO = null;
 
 function texParams() {
@@ -497,9 +402,26 @@ function freeTarget(t) { if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(
 
 function initGL() {
   progPlaster = program(VERT, FRAG_PLASTER);
-  progLight = program(VERT, FRAG_LIGHT);
+  const lodExt = gl.getExtension('EXT_shader_texture_lod');
+  lodMode = !!lodExt;
+  progLight = program(VERT, (lodExt ? '#extension GL_EXT_shader_texture_lod : enable\n#define HAS_LOD 1\n' : '') + FRAG_LIGHT);
   progComp = program(VERT, FRAG_COMP);
   progMote = program(VERT_MOTE, FRAG_MOTE);
+  const deriv = gl.getExtension('OES_standard_derivatives');
+  progOcc = program(VERT_OCC, (deriv ? '#extension GL_OES_standard_derivatives : enable\n#define HAS_DERIV 1\n' : '') + FRAG_OCC);
+  occAttr = ['aQ', 'aC', 'aL', 'aW', 'aP'].map(n => gl.getAttribLocation(progOcc.p, n));
+  const idx = new Uint16Array(16384 * 6);
+  for (let i = 0; i < 16384; i++) {
+    const b = i * 4, o = i * 6;
+    idx[o] = b; idx[o + 1] = b + 1; idx[o + 2] = b + 2; idx[o + 3] = b; idx[o + 4] = b + 2; idx[o + 5] = b + 3;
+  }
+  quadIdx = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadIdx);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  canBuf = gl.createBuffer();
+  nearBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, nearBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, nearData.byteLength, gl.DYNAMIC_DRAW);
   triBuf = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, triBuf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -507,10 +429,22 @@ function initGL() {
   gl.bindBuffer(gl.ARRAY_BUFFER, moteBuf);
   gl.bufferData(gl.ARRAY_BUFFER, moteData.byteLength, gl.DYNAMIC_DRAW);
   gl.disable(gl.DEPTH_TEST);
-  lightFBO = plasterFBO = null;
+  lightFBO = plasterFBO = canT = nearT = null;
   needsResize = true;
 }
 
+/* quads of 15 floats per corner: aQ2 aC3 aL3 aW3 aP4 */
+function occAttribs(on) { for (const a of occAttr) if (a >= 0) (on ? gl.enableVertexAttribArray(a) : gl.disableVertexAttribArray(a)); }
+function drawQuads(buf, first, count) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadIdx);
+  const sizes = [2, 3, 3, 3, 4], offs = [0, 8, 20, 32, 44];
+  for (let q0 = 0; q0 < count; q0 += 16384) {
+    const n = Math.min(16384, count - q0), base = (first + q0) * 4 * 60;
+    for (let j = 0; j < 5; j++) if (occAttr[j] >= 0) gl.vertexAttribPointer(occAttr[j], sizes[j], gl.FLOAT, false, 60, base + offs[j]);
+    gl.drawElements(gl.TRIANGLES, n * 6, gl.UNSIGNED_SHORT, 0);
+  }
+}
 function drawTri() {
   gl.bindBuffer(gl.ARRAY_BUFFER, triBuf);
   gl.enableVertexAttribArray(0);
@@ -532,6 +466,21 @@ function makeLightTarget() {
   const lw = Math.max(1, Math.round(lh * W / H));
   freeTarget(lightFBO);
   lightFBO = makeTarget(lw, lh);
+  makeOccTargets();
+}
+/* the occlusion maps cover the visible wall plus a margin for the widest penumbra */
+function makeOccTargets() {
+  const m = 0.16;
+  occRect = [-halfW - m, yBot - m, 2 * halfW + 2 * m, (0.5 - yBot) + 2 * m];
+  freeTarget(canT); freeTarget(nearT);
+  const cw = quality < 0.75 ? 512 : 1024;
+  canT = makeTarget(cw, cw / 2);
+  gl.bindTexture(gl.TEXTURE_2D, canT.tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  const maxT = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+  const nh = Math.min(2048, Math.round(lightFBO.h * 1.6 * occRect[3] / (0.5 - yBot)));
+  nearT = makeTarget(Math.min(maxT, Math.max(1, Math.round(nh * occRect[2] / occRect[3]))), nh);
 }
 function renderPlaster() {
   freeTarget(plasterFBO);
@@ -563,6 +512,7 @@ function resize() {
 
   makeLightTarget();
   layoutBranches();
+  buildCanopy();
 
   if (!plasterFBO) plasterDirty = true;
   else if (changed) {
@@ -668,7 +618,7 @@ function layoutBranches() {
   const portrait = smooth(1.25, 0.65, 2 * halfW);
   branchA.sc = clamp(2 * halfW * 0.66 / 0.80, 0.45, 1);
   branchA.ax = halfW + 0.09 * branchA.sc;
-  branchA.ay = 0.46 + 0.06 * portrait;
+  branchA.ay = 0.50 + 0.06 * portrait;
   branchA.a0 = Math.PI * (1.08 + 0.10 * portrait);
   branchB.sc = clamp(2 * halfW * 0.6 / 0.55, 0.5, 1);
   branchB.ax = -halfW - 0.03;
@@ -836,19 +786,218 @@ function updateSun(t, dt) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  The sun's pool of light: a sundial without numerals                */
+/*  The light and what stands in its way                               */
 /* ------------------------------------------------------------------ */
-/* Where the canopy thins the light gathers. Through the day that pool walks
-   across the wall: low on the left after sunrise, high in the middle at noon,
-   low on the right before sunset. At night the moon's pool is fainter.      */
-const SUNRISE = 5.6, SUNSET = 19.2;
-function poolOf(h) {
-  const day = (h - SUNRISE) / (SUNSET - SUNRISE);
-  let u, s, lift;
-  if (day >= 0 && day <= 1) { u = day; s = 1; lift = 0.40; }
-  else { u = ((((h - SUNSET) % 24) + 24) % 24) / (24 - (SUNSET - SUNRISE)); s = 0.5; lift = 0.20; }
-  const edge = Math.min(1, Math.min(u, 1 - u) / 0.07);
-  return { x: (-0.80 + 1.60 * u) * halfW, y: -0.22 + lift * Math.sin(Math.PI * u), r: 0.44, s: s * (0.35 + 0.65 * edge) };
+/* Everything on the wall is the shadow of something in front of it: a far
+   canopy, a nearer one, two branches, and a sprig with two twigs that tells the
+   time. A point at distance z from the wall lands at P.xy - z * k, where
+   k = s.xy / s.z for the direction s toward the sun. The sun is a disc, so the
+   farther a leaf is from the wall, the softer its shadow and the rounder the
+   light that comes through its gaps.                                         */
+const SUN_R = 0.0055;                        /* angular radius (rad), a little larger than the real sun's */
+const SUNRISE = 5.5, SUNSET = 19.0;
+function arc(u, az, eLo, eHi) {
+  const A = (-az + 2 * az * u) * Math.PI / 180;
+  const E = (eLo + (eHi - eLo) * Math.sin(Math.PI * u)) * Math.PI / 180;
+  return [Math.sin(A) * Math.cos(E), Math.sin(E), Math.cos(A) * Math.cos(E)];
+}
+/* toward the sun by day (low on the left in the morning, high at noon, low on
+   the right in the evening) and toward the moon by night, blended at the edges */
+function lightDir(h) {
+  h = ((h % 24) + 24) % 24;
+  const dayLen = SUNSET - SUNRISE;
+  const uD = (h - SUNRISE) / dayLen;
+  const uN = ((((h - SUNSET) % 24) + 24) % 24) / (24 - dayLen);
+  const sun = arc(clamp(uD, 0, 1), 58, 10, 56), moon = arc(clamp(uN, 0, 1), 50, 12, 36);
+  const w = smooth(-0.04, 0.04, uD) * (1 - smooth(0.96, 1.04, uD));
+  const v = sun.map((x, i) => x * w + moon[i] * (1 - w));
+  const n = Math.hypot(v[0], v[1], v[2]);
+  return v.map(x => x / n);
+}
+
+const FPV = 15;
+const CORNERS = [[0, -1], [1, -1], [1, 1], [0, 1]];
+function putQuad(arr, qi, c, l, w, p) {
+  let o = qi * 4 * FPV;
+  for (let j = 0; j < 4; j++) {
+    const q = CORNERS[j];
+    arr[o++] = q[0]; arr[o++] = q[1];
+    arr[o++] = c[0]; arr[o++] = c[1]; arr[o++] = c[2];
+    arr[o++] = l[0]; arr[o++] = l[1]; arr[o++] = l[2];
+    arr[o++] = w[0]; arr[o++] = w[1]; arr[o++] = w[2];
+    arr[o++] = p[0]; arr[o++] = p[1]; arr[o++] = p[2]; arr[o++] = p[3];
+  }
+}
+
+/* The canopy: clusters of leaves at two depths. Leaf positions are kept as the
+   shadow they cast with the sun straight on; as the sun moves through the day
+   the canopy's shadow slides across the wall, wrapping around a tile.        */
+let canMid = [0, 0], canFar = [0, 0], tile = [0, 0, 1, 1];
+function buildCanopy() {
+  const r = mulberry(4242);
+  const pad = 0.1;
+  tile = [occRect[0] - pad, occRect[1] - pad, occRect[2] + 2 * pad, occRect[3] + 2 * pad];
+  const area = tile[2] * tile[3];
+  const gauss = () => Math.sqrt(-2 * Math.log(r() + 1e-9)) * Math.cos(6.2832 * r());
+  const leaves = [];
+  const layer = (zLo, zHi, cover, l0, l1, sigma, perCluster, opacity) => {
+    const mean = (l0 + l1) / 2;
+    const leafArea = mean * mean * 0.60 * 0.62 * 0.62;
+    const n = Math.round(-Math.log(1 - cover) * area / leafArea * 1.3);
+    const start = leaves.length;
+    let cx = 0, cy = 0, cz = 0, cph = 0;
+    for (let i = 0; i < n; i++) {
+      if (i % perCluster === 0) { cx = tile[0] + r() * tile[2]; cy = tile[1] + r() * tile[3]; cz = zLo + r() * (zHi - zLo); cph = r(); }
+      const z = cz * (1 + (r() - 0.5) * 0.12);
+      const len = l0 + r() * (l1 - l0);
+      /* a leaf hangs at any angle; most turn their faces toward the light */
+      const phi = r() * 6.2832, lz = (r() - 0.5) * 0.9, cl = Math.sqrt(1 - lz * lz);
+      const Ld = [Math.cos(phi) * cl, Math.sin(phi) * cl, lz];
+      let nr = [r() - 0.5, r() - 0.15, r() + 0.4];
+      const d = nr[0] * Ld[0] + nr[1] * Ld[1] + nr[2] * Ld[2];
+      nr = [nr[0] - d * Ld[0], nr[1] - d * Ld[1], nr[2] - d * Ld[2]];
+      const nl = Math.hypot(nr[0], nr[1], nr[2]) || 1;
+      nr = nr.map(x => x / nl);
+      const wd = [Ld[1] * nr[2] - Ld[2] * nr[1], Ld[2] * nr[0] - Ld[0] * nr[2], Ld[0] * nr[1] - Ld[1] * nr[0]];
+      const hw = len * (0.26 + 0.1 * r());
+      leaves.push([[cx + gauss() * sigma, cy + gauss() * sigma, z], Ld.map(x => x * len), wd.map(x => x * hw), [cph, r(), 0, opacity]]);
+    }
+    return [start, leaves.length - start];
+  };
+  canMid = layer(0.9, 1.7, 0.30, 0.060, 0.100, 0.07, 10, 0.88);
+  /* far: an almost closed roof of leaves; light comes through its gaps. Each gap
+     is a few overlapping lobes; most are small, a few are wide.             */
+  const fStart = leaves.length;
+  const nGaps = Math.round(area * 62);
+  for (let i = 0; i < nGaps; i++) {
+    const gx = tile[0] + r() * tile[2], gy = tile[1] + r() * tile[3];
+    const z = 3.4 + r() * 2.0;
+    const rad = 0.014 + 0.040 * Math.pow(r(), 1.6);
+    const lobes = 1 + Math.floor(r() * 3), ph = r(), depth = 0.65 + 0.35 * r();
+    for (let l = 0; l < lobes; l++) {
+      const ox = l ? gauss() * rad * 0.7 : 0, oy = l ? gauss() * rad * 0.7 : 0;
+      const ra = rad * (l ? 0.45 + 0.4 * r() : 1), el = 0.6 + 0.4 * r(), an = r() * 6.2832;
+      const ux = Math.cos(an), uy = Math.sin(an);
+      leaves.push([[gx + ox - ux * ra, gy + oy - uy * ra, z], [ux * 2 * ra, uy * 2 * ra, 0], [-uy * ra * el, ux * ra * el, 0], [ph, r(), 2, depth]]);
+    }
+  }
+  canFar = [fStart, leaves.length - fStart];
+  const data = new Float32Array(leaves.length * 4 * FPV);
+  leaves.forEach((lf, i) => putQuad(data, i, lf[0], lf[1], lf[2], lf[3]));
+  gl.bindBuffer(gl.ARRAY_BUFFER, canBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+}
+
+/* Things close to the wall are posed every frame. */
+const NEAR_MAX = 128;
+const nearData = new Float32Array(NEAR_MAX * 4 * FPV);
+let nearQ = 0, kNow = [0, 0];
+const proj = a => [a[0] - a[2] * kNow[0], a[1] - a[2] * kNow[1]];
+function emitSeg(a, b, half, opacity) {
+  if (nearQ >= NEAR_MAX) return;
+  const pa = proj(a), pb = proj(b);
+  let dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+  const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+  const ex = b[0] - a[0], ey = b[1] - a[1], ez = b[2] - a[2];
+  const ext = half / (Math.hypot(ex, ey, ez) || 1);        /* a hair past both ends, so segments join */
+  putQuad(nearData, nearQ++, [a[0] - ex * ext, a[1] - ey * ext, a[2] - ez * ext],
+    [ex * (1 + 2 * ext), ey * (1 + 2 * ext), ez * (1 + 2 * ext)], [-dy * half, dx * half, 0], [0, 0, 1, opacity]);
+}
+function emitLeaf(base, L, Wv, opacity) {
+  if (nearQ >= NEAR_MAX) return;
+  putQuad(nearData, nearQ++, base, L, Wv, [0, 0, 0, opacity]);
+}
+/* the clearing: overlapping wide gaps around the sprig, breathing slightly */
+const CLEAR_LOBES = (() => {
+  const r = mulberry(77);
+  /* an uneven opening: a core that leans to one side, ragged lobes, a few stray gaps */
+  const out = [[0.06, 0.04, 0.62, 0.78, 0.5], [-0.22, -0.12, 0.48, 0.7, 2.1], [0.24, -0.2, 0.42, 0.62, 1.2]];
+  for (let i = 0; i < 16; i++) {
+    const a = r() * 6.2832, d = 0.35 + 0.55 * Math.sqrt(r());
+    out.push([Math.cos(a) * d, Math.sin(a) * d * 0.85, 0.14 + 0.26 * r() * (1.15 - d * 0.5), 0.45 + 0.5 * r(), r() * 6.2832]);
+  }
+  return out;
+})();
+function emitClearing(c, R, t) {
+  for (let i = 0; i < CLEAR_LOBES.length; i++) {
+    const [ox, oy, rr, el, an0] = CLEAR_LOBES[i];
+    const ra = R * rr * (1 + 0.04 * sn1(t * 0.07 + i * 3.1));
+    const an = an0 + 0.1 * sn1(t * 0.05 + i);
+    const ux = Math.cos(an), uy = Math.sin(an);
+    const cx = c[0] + ox * R + 0.01 * sn1(t * 0.09 + i * 1.7), cy = c[1] + oy * R;
+    if (nearQ >= NEAR_MAX) return;
+    putQuad(nearData, nearQ++, [cx - ux * ra, cy - uy * ra, 0], [ux * 2 * ra, uy * 2 * ra, 0], [-uy * ra * el, ux * ra * el, 0], [0, 0, 2, 1]);
+  }
+}
+function rotAbout(v, ax, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  const d = ax[0] * v[0] + ax[1] * v[1] + ax[2] * v[2];
+  const cx = ax[1] * v[2] - ax[2] * v[1], cy = ax[2] * v[0] - ax[0] * v[2], cz = ax[0] * v[1] - ax[1] * v[0];
+  return [v[0] * c + cx * s + ax[0] * d * (1 - c), v[1] * c + cy * s + ax[1] * d * (1 - c), v[2] * c + cz * s + ax[2] * d * (1 - c)];
+}
+
+/* the two corner branches, posed as before and lifted off the wall */
+function emitBranch(B, leafArr, wArr, jArr, zBase, zTip, aK, th0, th1) {
+  const n = B.lens.length;
+  const zAt = f => zBase + (zTip - zBase) * f;
+  for (let i = 0; i < n; i++) {
+    const z0 = zAt(i / n), z1 = zAt((i + 1) / n);
+    emitSeg([jArr[i * 2] + z0 * aK[0], jArr[i * 2 + 1] + z0 * aK[1], z0],
+            [jArr[i * 2 + 2] + z1 * aK[0], jArr[i * 2 + 3] + z1 * aK[1], z1],
+            (th0 + (th1 - th0) * i / Math.max(1, n - 1)) * B.sc, 1);
+  }
+  for (let k = 0; k < B.leaves.length; k++) {
+    const o = k * 4, lf = B.leaves[k], z = zAt(lf.s);
+    const lx = leafArr[o + 2], ly = leafArr[o + 3], len = Math.hypot(lx, ly) || 1e-6;
+    const ux = lx / len, uy = ly / len;
+    const hw = len * 0.30 * wArr[(k >> 1) * 4 + (k & 1) * 2];
+    emitLeaf([leafArr[o] - ux * len * 0.2 + z * aK[0], leafArr[o + 1] - uy * len * 0.2 + z * aK[1], z],
+             [ux * len * 1.2, uy * len * 1.2, len * 0.22 * Math.sin(lf.ph * 1.7)], [-uy * hw, ux * hw, 0], 0.95);
+  }
+}
+
+/* The clock: a short stem grows out of the wall (its shadow is a little gnomon);
+   from its knot a short twig with broad leaves points at the hour and a long
+   slender one at the minute. No numerals, no dial.                           */
+const PIVOT = { x: 0, y: -0.01 };
+const Z0 = 0.045;                            /* the knot, about 7 cm out from the wall */
+/* leaves along a twig: s along the stem (0..1), side, angle off the stem, length, width */
+const HOUR_LEAVES = [[0.45, 1, 0.85, 0.060, 1.10], [0.65, -1, 0.75, 0.068, 1.15], [0.84, 1, 0.60, 0.072, 1.10], [1.0, 0, 0.0, 0.080, 1.20]];
+const MIN_LEAVES = [[0.58, -1, 0.65, 0.034, 0.80], [0.74, 1, 0.58, 0.036, 0.82], [0.88, -1, 0.50, 0.038, 0.85], [1.0, 0, 0.0, 0.044, 0.90]];
+function handFracs() {
+  const d = new Date();
+  let hh, mm, ss;
+  if (debugMin !== null) { hh = Math.floor(debugMin / 60); mm = debugMin % 60; ss = 0; }
+  else { hh = d.getHours(); mm = d.getMinutes(); ss = d.getSeconds() + d.getMilliseconds() / 1000; }
+  return { h: ((hh % 12) + mm / 60 + ss / 3600) / 12, m: (mm + ss / 60) / 60 };
+}
+function emitHand(frac, len, bend, lift, th0, th1, leaves, t, sway, seed, scale) {
+  const th = frac * Math.PI * 2 + sway;
+  const dx = Math.sin(th), dy = Math.cos(th), nx = dy, ny = -dx;     /* 12 o'clock is up, clockwise */
+  const K = [PIVOT.x, PIVOT.y, Z0];
+  const C = [K[0] + dx * len * 0.5 + nx * len * bend * 1.6, K[1] + dy * len * 0.5 + ny * len * bend * 1.6, Z0 + lift * 0.5];
+  const E = [K[0] + dx * len + nx * len * bend * 0.3, K[1] + dy * len + ny * len * bend * 0.3, Z0 + lift];
+  const at = u => { const v = 1 - u; return [0, 1, 2].map(j => v * v * K[j] + 2 * v * u * C[j] + u * u * E[j]); };
+  const tan = u => [0, 1, 2].map(j => 2 * (1 - u) * (C[j] - K[j]) + 2 * u * (E[j] - C[j]));
+  let prev = K;
+  for (let q = 1; q <= 3; q++) { const pt = at(q / 3); emitSeg(prev, pt, th0 + (th1 - th0) * (q - 1) / 2, 1); prev = pt; }
+  const fl = flutterAt(PIVOT.x);
+  for (let i = 0; i < leaves.length; i++) {
+    const [sAt, side, off, ll0, wf] = leaves[i];
+    const ll = ll0 * scale, base = at(sAt), T = tan(sAt), ph = seed + i * 7.31;
+    let a = Math.atan2(T[1], T[0]) + side * off;
+    a += fl * (0.16 * sn1(t * (2.0 + i * 0.37) + ph) + 0.06 * sn1(t * 5.1 + ph * 2.3));
+    const tz = 0.28 * (side || 0.6) + 0.1 * sn1(t * 0.4 + ph);      /* tips lean off the wall, or toward it */
+    let Ld = [Math.cos(a), Math.sin(a), tz];
+    const n0 = Math.hypot(Ld[0], Ld[1], Ld[2]); Ld = Ld.map(x => x / n0);
+    /* the blade faces the wall, turned about its midrib by the breeze */
+    let nr = [-Ld[2] * Ld[0], -Ld[2] * Ld[1], 1 - Ld[2] * Ld[2]];
+    const nn = Math.hypot(nr[0], nr[1], nr[2]) || 1; nr = nr.map(x => x / nn);
+    nr = rotAbout(nr, Ld, 0.35 * (side || 1) + fl * 0.9 * sn1(t * (0.9 + i * 0.21) + ph * 1.7) + 0.25 * sn1(t * 0.25 + ph));
+    const Wd = [Ld[1] * nr[2] - Ld[2] * nr[1], Ld[2] * nr[0] - Ld[0] * nr[2], Ld[0] * nr[1] - Ld[1] * nr[0]];
+    const hw = ll * 0.30 * wf;
+    emitLeaf(base, Ld.map(x => x * ll * 1.1), Wd.map(x => x * hw), 0.96);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -948,19 +1097,84 @@ function frame(now) {
   updateWind(wt, dt * (motion === 1 ? 1 : 0.35));
   updateSun(t, dt);
   const L = todL;
-
-  /* sun of the hour: ellipse axis, elongation, shadow throw */
-  const ang = L.ang * Math.PI / 180;
-  const axx = Math.cos(ang), axy = -Math.sin(ang);
-  const sel = Math.sqrt(L.el);
-  const throwLen = 0.022 * (L.el - 1);
-  const sx = sunX.x + axx * (L.el - 1) * 0.08, sy = sunY.x + axy * (L.el - 1) * 0.08;
   const cloud = smooth(0.66, 0.92, vn(t * 0.018, 7.3)) * 0.6;
   const fade = smooth(0, 1.5, t);
   const fadeE = 1 - Math.pow(1 - fade, 3);
 
-  poseBranch(branchA, wt, sunX.x, sunY.x, leafA, leafWA, jointA);
-  poseBranch(branchB, wt, sunX.x, sunY.x, leafB, leafWB, jointB);
+  /* the light: a direction from the hour, nudged a touch by the pointer */
+  const s0 = lightDir(info.hour);
+  const k = [s0[0] / s0[2] + 0.04 * sunX.x, s0[1] / s0[2] + 0.04 * sunY.x];
+  kNow = k;
+  const sz = 1 / Math.hypot(k[0], k[1], 1);
+  const kl = Math.hypot(k[0], k[1]);
+  const sd = kl > 1e-4 ? [k[0] / kl, k[1] / kl] : [0, 1];
+  const penum = z => z * SUN_R / sz;
+
+  /* near the wall: the sprig that keeps time, and two branches */
+  nearQ = 0;
+  const R = Math.min(0.31, halfW * 0.78);
+  const fr = handFracs();
+  const sw = wind.mid.x * 1.1 + 0.6 * wind.far.x;
+  emitSeg([PIVOT.x, PIVOT.y, 0], [PIVOT.x, PIVOT.y, Z0], 0.0040, 1);
+  emitHand(fr.h, R * 0.62, 0.05, 0.010, 0.0062, 0.0034, HOUR_LEAVES, wt, sw * 0.8, 3.1, R / 0.31);
+  emitHand(fr.m, R, -0.035, 0.016, 0.0030, 0.0014, MIN_LEAVES, wt, sw, 11.7, R / 0.31);
+  const handQ = nearQ;
+  poseBranch(branchA, wt, 0, 0, leafA, leafWA, jointA);
+  poseBranch(branchB, wt, 0, 0, leafB, leafWB, jointB);
+  const aK = [0.85 * k[0], 0.85 * k[1]];      /* the branches hang so their shadows stay near the corners */
+  emitBranch(branchA, leafA, leafWA, jointA, 0.34, 0.24, aK, 0.0052, 0.0018);
+  emitBranch(branchB, leafB, leafWB, jointB, 0.42, 0.30, aK, 0.0065, 0.0030);
+  const branchQ = nearQ - handQ;
+  const holeC = [PIVOT.x - Z0 * k[0], PIVOT.y - Z0 * k[1]];
+  emitClearing(holeC, R * 1.12, wt);
+  const clearQ = nearQ - handQ - branchQ;
+  gl.bindBuffer(gl.ARRAY_BUFFER, nearBuf);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, nearData.subarray(0, nearQ * 4 * FPV));
+
+  /* occlusion maps: what stands between the sun and each point of the wall */
+  const O = progOcc;
+  gl.useProgram(O.p);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.clearColor(0, 0, 0, 0);
+  gl.uniform2f(O.u('uK'), k[0], k[1]);
+  gl.uniform4f(O.u('uRect'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
+  occAttribs(true);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, canT.fb);
+  gl.viewport(0, 0, canT.w, canT.h);
+  gl.clearColor(0, 0.97, 0, 0);               /* g: the far roof starts closed */
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.clearColor(0, 0, 0, 0);
+  gl.uniform4f(O.u('uTile'), tile[0], tile[1], tile[2], tile[3]);
+  gl.uniform4f(O.u('uW2'), wind.gustX, wind.gustAmp, wind.gustDir, 0);
+  gl.colorMask(true, false, false, false);
+  gl.uniform4f(O.u('uW1'), wind.mid.x * 1.4, wind.midY.x * 1.4, wt, 0.22 * motion);
+  gl.uniform4f(O.u('uHole'), holeC[0], holeC[1], R * 1.4, 0.3);
+  drawQuads(canBuf, canMid[0], canMid[1]);
+  gl.colorMask(false, true, false, false);
+  gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);  /* gaps are cut out of the roof */
+  gl.uniform4f(O.u('uW1'), wind.far.x * 1.2, wind.farY.x * 1.2, wt * 0.9 + 17.0, 0.5 * motion);
+  gl.uniform4f(O.u('uHole'), 0, 0, 0, 0);
+  drawQuads(canBuf, canFar[0], canFar[1]);
+  gl.uniform4f(O.u('uTile'), 0, 0, 0, 0);
+  gl.uniform4f(O.u('uW1'), 0, 0, 0, 0);
+  gl.uniform4f(O.u('uW2'), -99, 0, 1, 0);
+  drawQuads(nearBuf, handQ + branchQ, clearQ);
+  gl.blendEquation(gl.FUNC_ADD);
+  gl.colorMask(true, true, true, true);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, nearT.fb);
+  gl.bindTexture(gl.TEXTURE_2D, canT.tex);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.viewport(0, 0, nearT.w, nearT.h);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.uniform4f(O.u('uTile'), 0, 0, 0, 0);
+  gl.uniform4f(O.u('uW1'), 0, 0, 0, 0);
+  gl.uniform4f(O.u('uW2'), -99, 0, 1, 0);
+  gl.uniform4f(O.u('uHole'), 0, 0, 0, 0);
+  gl.colorMask(true, false, false, false); drawQuads(nearBuf, 0, handQ);
+  gl.colorMask(false, true, false, false); drawQuads(nearBuf, handQ, branchQ);
+  gl.colorMask(true, true, true, true);
+  occAttribs(false);
+  gl.disable(gl.BLEND);
 
   /* light pass */
   gl.bindFramebuffer(gl.FRAMEBUFFER, lightFBO.fb);
@@ -968,21 +1182,21 @@ function frame(now) {
   const P = progLight;
   const ls = lightFBO.h / cssH;
   gl.useProgram(P.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, nearT.tex);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, canT.tex);
+  gl.uniform1i(P.u('uNear'), 0);
+  gl.uniform1i(P.u('uCan'), 1);
   gl.uniform4f(P.u('uView'), 0.5 * lightFBO.w, (cssH - 0.5 * layoutH) * ls, layoutH * ls, wt);
-  gl.uniform4f(P.u('uSunG'), sx, sy, wind.gustX, wind.gustAmp);
-  gl.uniform4f(P.u('uSway'), wind.far.x, wind.farY.x, wind.mid.x, wind.midY.x);
-  gl.uniform4f(P.u('uMisc'), wind.gustDir, 0.22 * motion, cloud, L.open);
-  gl.uniform4f(P.u('uAxis'), axx, axy, sel, L.soft);
-  const pool = poolOf(info.hour);
-  gl.uniform4f(P.u('uPool'), pool.x, pool.y, pool.r, pool.s);
-  gl.uniform4f(P.u('uShad'), axx * throwLen, axy * throwLen, (0.8 + 0.7 * (L.el - 1)) * (1 + 5 * (L.soft - 0.25)), motion === 1 ? 1 : 0.4);
-  gl.uniform2f(P.u('uBrSc'), branchA.sc, branchB.sc);
-  gl.uniform4fv(P.u('uLA'), leafA);
-  gl.uniform4fv(P.u('uWA'), leafWA);
-  gl.uniform4fv(P.u('uJA'), jointA);
-  gl.uniform4fv(P.u('uLB'), leafB);
-  gl.uniform4fv(P.u('uWB'), leafWB);
-  gl.uniform4fv(P.u('uJB'), jointB);
+  gl.uniform4f(P.u('uRect'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
+  gl.uniform4f(P.u('uSun'), sd[0], sd[1], 1 / sz, 0);
+  const lpx = (0.5 - yBot) / lightFBO.h;
+  const rMid = penum(1.3), rFar = penum(4.4);
+  gl.uniform4f(P.u('uRad'), Math.max(penum(Z0 + 0.01), 0.9 * lpx), Math.max(penum(0.32), lpx), rMid, rFar);
+  const tpu = canT.h / occRect[3];
+  /* mip level where neighbouring taps just overlap: log2 of the tap spacing in texels */
+  const bias = (r, n) => Math.max(0, Math.log2(Math.sqrt(Math.PI * (r * tpu) * (r * tpu) / sz / n)) + (lodMode ? 0.2 : -0.5));
+  gl.uniform2f(P.u('uBias'), bias(rMid, 28), bias(rFar, 40));
+  gl.uniform4f(P.u('uPool'), holeC[0], holeC[1], R * 1.12, clamp(0.55 + 0.45 * L.si, 0.7, 1));
   drawTri();
 
   /* composite */
@@ -1005,8 +1219,7 @@ function frame(now) {
   gl.uniform1f(C.u('uFade'), fadeE);
   gl.uniform4f(C.u('uCloud'), tt, T.down, T.hold, T.up);
   gl.uniform2f(C.u('uCloud2'), T.depth, T.lag);
-  const rl = Math.hypot(-axx * 0.5 - 0.3, axy * 0.5 + 0.8) || 1;
-  gl.uniform2f(C.u('uRelD'), (-axx * 0.5 - 0.3) / rl, (axy * 0.5 + 0.8) / rl);
+  gl.uniform2f(C.u('uRelD'), sd[0], sd[1]);
   gl.uniform2f(C.u('uGlow'), L.glow, 0.20 + 0.10 * (1 - L.si));
   drawTri();
 

@@ -3,7 +3,7 @@
   "name": "Komorebi Clock New Tab",
   "short_name": "Komorebi Clock",
   "version": "1.0.0",
-  "description": "A quiet new tab: sunlight through leaves on a plaster wall. No numerals; the pool of light moves across the wall with the hour.",
+  "description": "A quiet new tab: tree shadows on a plaster wall, cast by the sun of the hour. A sprig's two twigs point at the time.",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },

@@ -1,13 +1,14 @@
 # Komorebi Clock New Tab
 
-A Chrome extension that replaces the new tab page with sunlight falling through leaves onto a plaster wall. It is a clock without numerals.
+A Chrome extension that replaces the new tab page with sunlight falling through leaves onto a plaster wall. It is a clock without numerals: the time is told by the shadow of a sprig.
 
-The light keeps time the way real light does. Where the canopy thins, the light gathers into a pool, and that pool walks across the wall through the day: low on the left after sunrise, high in the middle at noon, low on the right before sunset. At night a fainter pool of moonlight makes the same crossing. Each minute the shadow of a small cloud passes over. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
+Everything on the wall is a shadow of something in front of it, cast by a sun that moves with the local hour. A far canopy (5 to 9 m from the wall) is an almost closed roof of leaves; the light through its gaps lands as soft, round pinhole images of the sun. A nearer layer of leaves (1.5 to 3 m) casts blurred leaf shapes, two branches by the corners cast sharper ones, and a small stem grows out of the wall about 7 cm. From its knot, a short twig with broad leaves points at the hour and a long slender one at the minute; the stem's own shadow is a little gnomon that turns with the sun. The farther something is from the wall, the softer its shadow, because the sun is a disc rather than a point. Each minute the shadow of a small cloud passes over. The light follows the local hour: pink-orange at dawn, warm white in the morning, bright and neutral at noon, golden with long ellipses in the late afternoon, deep orange at dusk, and cool blue moonlight at night.
 
 ![screenshot](store/screenshot_1280x800_a.png)
 
 - Manifest V3, no permissions, no network requests
 - WebGL 1 and vanilla JavaScript, no build step, no text on screen
+- Shadows are computed from 3D leaves and twigs: each layer is projected along the sun onto the wall, then averaged over the sun's disc
 - Moving the pointer nudges the wind and the sun a little; it works without a mouse
 - Respects `prefers-reduced-motion` (slower wind, no gusts, a shorter and fainter cloud)
 - Rendering is capped at about 30 fps when idle, with device pixel ratio capped at 1.5
