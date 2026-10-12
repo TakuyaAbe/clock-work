@@ -1,6 +1,8 @@
 {
   // Cloudflare Workers, static assets only: the site built into dist/site by `npm run build`.
   "name": "clock-etudes",
+  // the personal account (a.taku275@gmail.com) only: never deploys anywhere else
+  "account_id": "d011b354fed440f212db8324bb8ec38d",
   "compatibility_date": "2026-10-01",
   "routes": [{ "pattern": "clock.sayuno.me", "custom_domain": true }],
   "assets": {
