@@ -4,3 +4,5 @@
 dist/
 media/
 attic/
+node_modules/
+.wrangler/

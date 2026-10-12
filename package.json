@@ -1,0 +1,13 @@
+{
+  "name": "clock-work",
+  "private": true,
+  "description": "On-screen Clock Études: clocks for the screen, one each week.",
+  "scripts": {
+    "build": "node site/build.mjs",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

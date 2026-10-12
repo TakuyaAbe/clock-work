@@ -1,0 +1,39 @@
+{
+  "site": {
+    "url": "",
+    "title": { "ja": "オンスクリーン時計の|エチュード", "en": "On-screen Clock Études" },
+    "lead": {
+      "ja": "画面のなかで時を告げるかたちを、週にひとつずつ試しています。どれもブラウザでそのまま動き、Chrome の新しいタブにも設定できます。",
+      "en": "Small studies in telling time on a screen, one each week. Each runs directly in the browser and can be set as your Chrome new tab."
+    },
+    "repo": "https://github.com/TakuyaAbe/clock-work"
+  },
+  "etudes": [
+    {
+      "no": 2,
+      "slug": "komorebi",
+      "date": "2026-10-12",
+      "src": "komorebi/extension",
+      "image": "site/img/komorebi.jpg",
+      "title": { "ja": "木漏れ日の時計", "en": "Komorebi Clock" },
+      "text": {
+        "ja": "漆喰の壁に落ちる木漏れ日。光はいまの太陽から届き、時刻は一本の枝の影のなかに隠れています。",
+        "en": "Sunlight through leaves on a plaster wall, cast by the sun of the current hour. The time is hidden in the shadow of a single branch."
+      },
+      "store": null
+    },
+    {
+      "no": 1,
+      "slug": "kinetic",
+      "date": "2026-09-29",
+      "src": "kinetic/extension",
+      "image": "site/img/kinetic.jpg",
+      "title": { "ja": "キネティック・クロック", "en": "Kinetic Clock" },
+      "text": {
+        "ja": "小さな正方形のタイルがばねのように飛び込んで数字を組み立て、秒の頭にぴたりと着地します。",
+        "en": "Small square tiles spring in to build each digit, landing exactly on the second."
+      },
+      "store": null
+    }
+  ]
+}
