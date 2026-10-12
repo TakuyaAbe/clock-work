@@ -1,5 +1,7 @@
 # Kinetic Clock New Tab
 
+[Chrome Web Store](https://chromewebstore.google.com/detail/hdommbaigmgaplmipckfjhimpalcenhe)
+
 A Chrome extension that replaces the new tab page with a live clock made of small square tiles.
 
 Every second, tiles spring into place to form the next digit and land exactly on the beat. Every ten seconds a wave passes through the numbers, and every minute the digits flip. Drag across the clock to push the tiles; they settle back on their own.
