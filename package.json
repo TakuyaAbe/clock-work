@@ -4,8 +4,10 @@
   "description": "On-screen Clock Études: clocks for the screen, one each week.",
   "scripts": {
     "build": "node site/build.mjs",
-    "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "login": "XDG_CONFIG_HOME=.wrangler-home wrangler login",
+    "whoami": "XDG_CONFIG_HOME=.wrangler-home wrangler whoami",
+    "preview": "npm run build && XDG_CONFIG_HOME=.wrangler-home wrangler dev",
+    "deploy": "npm run build && XDG_CONFIG_HOME=.wrangler-home wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

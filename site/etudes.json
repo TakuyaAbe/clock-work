@@ -1,6 +1,6 @@
 {
   "site": {
-    "url": "",
+    "url": "https://clock-etudes.a-taku275.workers.dev",
     "title": { "ja": "オンスクリーン時計の|エチュード", "en": "On-screen Clock Études" },
     "lead": {
       "ja": "画面のなかで時を告げるかたちを、週にひとつずつ試しています。どれもブラウザでそのまま動き、Chrome の新しいタブにも設定できます。",

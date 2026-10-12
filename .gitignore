@@ -6,3 +6,4 @@ media/
 attic/
 node_modules/
 .wrangler/
+.wrangler-home/
