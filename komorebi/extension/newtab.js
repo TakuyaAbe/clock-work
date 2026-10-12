@@ -724,7 +724,7 @@ function poseBranch(B, t, sunX, sunY, leafArr, wArr, jArr) {
     const fl = flutterAt(px);
     const flt = fl * (0.20 * sn1(t * L.fq * 0.35 + L.ph) + 0.05 * sn1(t * L.fq * 0.7 + L.ph * 3.1));
     let ang = B.ang[i] + B.mir * L.off + flt + leafBend;
-    ang += Math.atan2(Math.sin(down - ang), Math.cos(down - ang)) * L.droop;
+    ang += Math.sin(down - ang) * L.droop * 1.3;   /* droop by the sine: no flip as a leaf sways past upright */
     const len = L.len * sc;
     const ca = Math.cos(ang), sa = Math.sin(ang);
     const pet = len * 0.2;
@@ -1165,7 +1165,7 @@ function emitMore(B, t, aK) {
     const f = L.s * n, i = Math.min(n - 1, Math.floor(f)), u = f - i;
     const p = [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u];
     let ang = pts[i + 1][2] + L.side * L.off + fl * (0.16 * sn1(t * 1.2 + L.ph) + 0.04 * sn1(t * 2.0 + L.ph * 2.1));
-    ang += Math.atan2(Math.sin(-Math.PI / 2 - ang), Math.cos(-Math.PI / 2 - ang)) * 0.15;     /* leaves droop a little */
+    ang += Math.sin(-Math.PI / 2 - ang) * 0.2;     /* leaves droop a little (by the sine: no flip past upright) */
     emitLeaf3D(w3(p), ang, L.tz, L.len, L.wf, 0.3 * L.side + fl * 0.55 * sn1(t * 0.7 + L.ph * 1.3), 0.95, L.ph * 0.137);
   }
 }
