@@ -2,6 +2,7 @@
   // Cloudflare Workers, static assets only: the site built into dist/site by `npm run build`.
   "name": "clock-etudes",
   "compatibility_date": "2026-10-01",
+  "routes": [{ "pattern": "clock.sayuno.me", "custom_domain": true }],
   "assets": {
     "directory": "./dist/site",
     "not_found_handling": "404-page"

@@ -11,7 +11,7 @@ Built packages (`dist/`), promo videos (`media/`) and old design iterations (`at
 
 ## Site: On-screen Clock Études
 
-The clocks are also a small site, オンスクリーン時計のエチュード / On-screen Clock Études, served from Cloudflare (Workers static assets, see `wrangler.jsonc`).
+The clocks are also a small site, オンスクリーン時計のエチュード / On-screen Clock Études, at https://clock.sayuno.me, served from Cloudflare (Workers static assets on a custom domain, see `wrangler.jsonc`). Wrangler keeps this repo's Cloudflare login in `.wrangler-home/` (git-ignored, `npm run login`), apart from any other login on the machine.
 
 - `npm run build` builds `dist/site` from `site/etudes.json`: the index of études, and one live page per étude (the extension's own page, with a faint link back to the index).
 - `npm run deploy` builds and deploys it with Wrangler.
