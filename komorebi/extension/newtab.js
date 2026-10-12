@@ -1488,7 +1488,7 @@ function frame(now) {
   gl.uniform3f(C.u('uViewC'), 0.5 * W, (cssH - 0.5 * layoutH) * (H / cssH), layoutH * (H / cssH));
   gl.uniform4f(C.u('uRectN'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
   gl.uniform4f(C.u('uSunN'), sd[0], sd[1], 1 / sz, 0);
-  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), 3.4 / layoutH), 0, 0);   /* the clock out of focus by about 3.4 CSS px */
+  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), 2.7 / layoutH), 0, 0);   /* the clock out of focus by about 2.7 CSS px */
   gl.uniform2f(C.u('uGlow'), L.glow, 0.20 + 0.10 * (1 - L.si));
   drawTri();
 
