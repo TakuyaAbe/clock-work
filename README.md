@@ -9,11 +9,11 @@ Clocks for the Chrome new tab page. Each folder is a separate Manifest V3 extens
 
 Built packages (`dist/`), promo videos (`media/`) and old design iterations (`attic/`) stay local and are git-ignored.
 
-## Site: On-screen Clock Études
+## Site: Clock Studies
 
-The clocks are also a small site, オンスクリーン時計のエチュード / On-screen Clock Études, at https://clock.sayuno.me, served from Cloudflare (Workers static assets on a custom domain, see `wrangler.jsonc`). Wrangler keeps this repo's Cloudflare login in `.wrangler-home/` (git-ignored, `npm run login`), apart from any other login on the machine.
+The clocks are also a small site, 時計のエチュード / Clock Studies, at https://clock.sayuno.me, served from Cloudflare (Workers static assets on a custom domain, see `wrangler.jsonc`). Wrangler keeps this repo's Cloudflare login in `.wrangler-home/` (git-ignored, `npm run login`), apart from any other login on the machine.
 
-- `npm run build` builds `dist/site` from `site/etudes.json`: the index of études, and one live page per étude (the extension's own page, with a faint link back to the index).
+- `npm run build` builds `dist/site` from `site/etudes.json`: the index of studies, and one live page per study (the extension's own page, with a faint link back to the index).
 - `npm run deploy` builds and deploys it with Wrangler.
 
 To add the week's étude:

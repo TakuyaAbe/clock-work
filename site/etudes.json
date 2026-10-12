@@ -1,7 +1,7 @@
 {
   "site": {
     "url": "https://clock.sayuno.me",
-    "title": { "ja": "オンスクリーン時計の|エチュード", "en": "On-screen Clock Études" },
+    "title": { "ja": "時計の|エチュード", "en": "Clock Studies" },
     "lead": {
       "ja": "画面のなかで時を告げるかたちを、週にひとつずつ試しています。どれもブラウザでそのまま動き、Chrome の新しいタブにも設定できます。",
       "en": "Small studies in telling time on a screen, one each week. Each runs directly in the browser and can be set as your Chrome new tab."

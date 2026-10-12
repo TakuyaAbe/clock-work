@@ -56,7 +56,7 @@ for (const e of etudes) {
   html = html
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>\n` +
       meta({ title, desc: `${e.text.ja} ${e.text.en}`, image: `img/${e.slug}.jpg`, path: `${e.slug}/` }) + '\n' + BACK)
-    .replace(/<body[^>]*>/, m => `${m}\n<a class="etude-back" href="../" aria-label="エチュード一覧へ / All études"><i aria-hidden="true">←</i><span>エチュード一覧へ · All études</span></a>`);
+    .replace(/<body[^>]*>/, m => `${m}\n<a class="etude-back" href="../" aria-label="エチュード一覧へ / All studies"><i aria-hidden="true">←</i><span>エチュード一覧へ · All studies</span></a>`);
   writeFileSync(join(dir, 'index.html'), html);
 }
 
@@ -102,7 +102,7 @@ ${meta({ title: siteTitle, desc: `${site.lead.ja} ${site.lead.en}`, image: `img/
 ${etudes.map(item).join('\n')}
   </main>
   <footer>
-    <span>${etudes.length} 作 <span class="en">${etudes.length} études</span></span>
+    <span>${etudes.length} 作 <span class="en">${etudes.length} studies</span></span>
     <a href="${esc(site.repo)}">GitHub</a>
   </footer>
 </div>
@@ -122,7 +122,7 @@ writeFileSync(join(OUT, '404.html'), `<!doctype html>
 <div class="wrap">
   <header>
     <h1><span lang="ja">ページが見つかりません</span> <span lang="en" class="en">Page not found</span></h1>
-    <p class="lead"><a href="/">エチュード一覧へ <span class="en">All études</span></a></p>
+    <p class="lead"><a href="/">エチュード一覧へ <span class="en">All studies</span></a></p>
   </header>
 </div>
 </body>

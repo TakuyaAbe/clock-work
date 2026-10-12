@@ -1,7 +1,7 @@
 {
   "name": "clock-work",
   "private": true,
-  "description": "On-screen Clock Études: clocks for the screen, one each week.",
+  "description": "Clock Studies (時計のエチュード): clocks for the screen, one each week.",
   "scripts": {
     "build": "node site/build.mjs",
     "login": "XDG_CONFIG_HOME=.wrangler-home wrangler login",
