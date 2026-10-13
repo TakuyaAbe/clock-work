@@ -150,7 +150,7 @@ function skyAt(d, hour, exact) {
     light: modelHour(hour, S),
     moon: 0.12 + 0.88 * lit * up,                                       /* a dark night without it */
     line: JA ? `${y}.${pad(mo + 1)}.${pad(dd)} ${WEEK_JA[wd]} · 月齢 ${a} · ${SEKKI[sk][0]} ${KO[ko][0]}`
-             : `${WEEK_EN[wd]} ${dd} ${MON_EN[mo]} ${y} · moon, day ${a} · ${KO[ko][1]} (${SEKKI[sk][1]})`
+             : `${WEEK_EN[wd]} ${dd} ${MON_EN[mo]} ${y} · Lunar age ${a} · ${KO[ko][1]} (${SEKKI[sk][1]})`
   };
 }
 
