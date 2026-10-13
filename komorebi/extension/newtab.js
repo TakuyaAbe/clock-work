@@ -1386,7 +1386,7 @@ let shownKey = info.key;
 const trans = { active: false, t0: 0, to: '' };
 function transTiming() {
   return motion === 1
-    ? { down: 1.6, hold: 1.2, up: 2.4, lag: 2.6, depth: 0.85 }     /* its edge crosses the wall in about 2.6 s */
+    ? { down: 1.6, hold: 1.2, up: 2.4, lag: 2.6, depth: 0.7 }     /* its edge crosses the wall in about 2.6 s */
     : { down: 0.8, hold: 0.4, up: 1.2, lag: 0.0, depth: 0.3 };
 }
 function startTransition(key) {
