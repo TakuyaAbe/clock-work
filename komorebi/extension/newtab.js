@@ -12,11 +12,13 @@ const rootStyle = document.documentElement.style;
 
 /* dbg.minutes, when set by the debug sequence bar, replaces the clock: minutes since midnight, fractional */
 const dbg = { on: false, minutes: null, playing: false, speed: 60 };
-let debugMin = null;
+let debugMin = null, debugDay = null;
 function readHash() {
   const h = location.hash || '';
   const m = /t=(\d{1,2}):(\d{2})/.exec(h);
   debugMin = m ? (clampI(+m[1], 0, 23) * 60 + clampI(+m[2], 0, 59)) : null;
+  const dm = /date=(\d{4})-(\d{2})-(\d{2})/.exec(h);                /* #date=YYYY-MM-DD: another day's sun and moon */
+  debugDay = dm ? new Date(+dm[1], +dm[2] - 1, +dm[3], 12) : null;
   if (/debug/.test(h)) dbg.on = true;
 }
 function clampI(v, a, b) { return Math.min(b, Math.max(a, v | 0)); }
@@ -24,6 +26,103 @@ readHash();
 window.addEventListener('hashchange', readHash);
 
 const pad = n => (n < 10 ? '0' : '') + n;
+/* ------------------------------------------------------------------ */
+/*  The real sky: the sun and moon of the date, near where the browser is */
+/* ------------------------------------------------------------------ */
+/* No location permission: the browser's time zone stands in for a place. */
+const ZONES = {
+  'Asia/Tokyo': [35.68, 139.69], 'Asia/Seoul': [37.57, 126.98], 'Asia/Shanghai': [31.23, 121.47], 'Asia/Taipei': [25.03, 121.57],
+  'Asia/Hong_Kong': [22.32, 114.17], 'Asia/Singapore': [1.35, 103.82], 'Asia/Bangkok': [13.76, 100.5], 'Asia/Jakarta': [-6.2, 106.85],
+  'Asia/Kolkata': [28.61, 77.21], 'Asia/Dubai': [25.2, 55.27], 'Europe/Moscow': [55.76, 37.62], 'Europe/Istanbul': [41.01, 28.98],
+  'Europe/Berlin': [52.52, 13.4], 'Europe/Paris': [48.86, 2.35], 'Europe/Madrid': [40.42, -3.7], 'Europe/Rome': [41.9, 12.5],
+  'Europe/Amsterdam': [52.37, 4.9], 'Europe/Stockholm': [59.33, 18.07], 'Europe/London': [51.51, -0.13], 'Africa/Cairo': [30.04, 31.24],
+  'Africa/Johannesburg': [-26.2, 28.05], 'America/New_York': [40.71, -74.01], 'America/Toronto': [43.65, -79.38],
+  'America/Chicago': [41.88, -87.63], 'America/Denver': [39.74, -104.99], 'America/Los_Angeles': [34.05, -118.24],
+  'America/Vancouver': [49.28, -123.12], 'America/Mexico_City': [19.43, -99.13], 'America/Sao_Paulo': [-23.55, -46.63],
+  'America/Argentina/Buenos_Aires': [-34.6, -58.38], 'Australia/Sydney': [-33.87, 151.21], 'Australia/Melbourne': [-37.81, 144.96],
+  'Australia/Perth': [-31.95, 115.86], 'Pacific/Auckland': [-36.85, 174.76], 'Pacific/Honolulu': [21.31, -157.86]
+};
+const PLACE = (() => {
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* none */ }
+  if (ZONES[tz]) return ZONES[tz];
+  const south = /^(Australia|Antarctica)\/|Sao_Paulo|Buenos_Aires|Santiago|Johannesburg|Auckland/.test(tz);
+  return [south ? -34 : 35, -new Date().getTimezoneOffset() / 4];    /* the zone's own meridian */
+})();
+const RAD = Math.PI / 180;
+/* the sun on a day (low-precision almanac formulas): ecliptic longitude, noon, sunrise and sunset in local hours */
+function sunOn(day) {
+  const n = day.getTime() / 86400000 + 2440587.5 - 2451545.0;
+  const L = 280.460 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * RAD;
+  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD, eps = (23.439 - 0.0000004 * n) * RAD;
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
+  const eot = Math.atan2(Math.sin(L * RAD - ra), Math.cos(L * RAD - ra)) / RAD * 4;          /* minutes */
+  const [lat, lon] = PLACE, phi = lat * RAD;
+  const noon = 12 - eot / 60 - lon / 15 - day.getTimezoneOffset() / 60;
+  const c = (Math.sin(-0.833 * RAD) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
+  const half = c >= 1 ? 0 : c <= -1 ? 12 : Math.acos(c) / RAD / 15;
+  return { lon: ((lam / RAD) % 360 + 360) % 360, noon, rise: noon - half, set: noon + half, alt: 90 - Math.abs(lat - dec / RAD) };
+}
+/* the new moon of lunation k (Meeus, Astronomical Algorithms ch. 49, main terms), as a Julian day */
+function newMoonJD(k) {
+  const T = k / 1236.85, E = 1 - 0.002516 * T;
+  const M = (2.5534 + 29.10535670 * k) * RAD, Mp = (201.5643 + 385.81693528 * k) * RAD;
+  const F = (160.7108 + 390.67050284 * k) * RAD, Om = (124.7746 - 1.56375588 * k) * RAD;
+  return 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T
+    - 0.40720 * Math.sin(Mp) + 0.17241 * E * Math.sin(M) + 0.01608 * Math.sin(2 * Mp) + 0.01039 * Math.sin(2 * F)
+    + 0.00739 * E * Math.sin(Mp - M) - 0.00514 * E * Math.sin(Mp + M) + 0.00208 * E * E * Math.sin(2 * M)
+    - 0.00111 * Math.sin(Mp - 2 * F) - 0.00057 * Math.sin(Mp + 2 * F) + 0.00056 * E * Math.sin(2 * Mp + M)
+    - 0.00042 * Math.sin(3 * Mp) + 0.00042 * E * Math.sin(M + 2 * F) + 0.00038 * E * Math.sin(M - 2 * F)
+    - 0.00024 * E * Math.sin(2 * Mp - M) - 0.00017 * Math.sin(Om);
+}
+/* days since the last new moon */
+function moonAge(ms) {
+  const jd = ms / 86400000 + 2440587.5;
+  let k = Math.floor((jd - 2451550.09766) / 29.530588861), nm = newMoonJD(k);
+  if (nm > jd) nm = newMoonJD(--k);
+  else if (newMoonJD(k + 1) <= jd) nm = newMoonJD(k + 1);
+  return jd - nm;
+}
+/* the scene's light was tuned on one day (sunrise 5:30, sunset 19:00); the real day is stretched onto it */
+const MODEL_RISE = 5.5, MODEL_SET = 19.0;
+function modelHour(h, S) {
+  h = ((h % 24) + 24) % 24;
+  const len = S.set - S.rise;
+  if (len >= 23.9) return 12.25;                    /* the midnight sun */
+  if (len <= 0.1) return 0;                         /* polar night */
+  const r = ((S.rise % 24) + 24) % 24, x = ((h - r) % 24 + 24) % 24;     /* hours since sunrise */
+  if (x <= len) return MODEL_RISE + x / len * (MODEL_SET - MODEL_RISE);
+  return (MODEL_SET + (x - len) / (24 - len) * (24 - (MODEL_SET - MODEL_RISE))) % 24;
+}
+let sunPeak = 56;                                   /* the sun's highest point over the wall, degrees; follows the season */
+/* the year in 24 solar terms and 72 short seasons, from the sun's longitude (each 5 degrees, from 315: the start of spring) */
+const SEKKI = [['立春','Beginning of Spring'],['雨水','Rain Water'],['啓蟄','Insects Awaken'],['春分','Spring Equinox'],['清明','Pure Brightness'],['穀雨','Grain Rain'],['立夏','Beginning of Summer'],['小満','Lesser Fullness'],['芒種','Grain in Ear'],['夏至','Summer Solstice'],['小暑','Lesser Heat'],['大暑','Greater Heat'],['立秋','Beginning of Autumn'],['処暑','End of Heat'],['白露','White Dew'],['秋分','Autumn Equinox'],['寒露','Cold Dew'],['霜降','Frost Descends'],['立冬','Beginning of Winter'],['小雪','Lesser Snow'],['大雪','Greater Snow'],['冬至','Winter Solstice'],['小寒','Lesser Cold'],['大寒','Greater Cold']];
+const KO = [['東風解凍','East wind melts the ice'],['黄鶯睍睆','Bush warblers start singing'],['魚上氷','Fish emerge from the ice'],['土脉潤起','Rain moistens the soil'],['霞始靆','Mist starts to linger'],['草木萌動','Grass sprouts, trees bud'],['蟄虫啓戸','Hibernating insects surface'],['桃始笑','First peach blossoms'],['菜虫化蝶','Caterpillars become butterflies'],['雀始巣','Sparrows start to nest'],['桜始開','First cherry blossoms'],['雷乃発声','Distant thunder'],['玄鳥至','Swallows return'],['鴻雁北','Wild geese fly north'],['虹始見','First rainbows'],['葭始生','First reeds sprout'],['霜止出苗','Last frost, rice seedlings grow'],['牡丹華','Peonies bloom'],['蛙始鳴','Frogs start singing'],['蚯蚓出','Worms surface'],['竹笋生','Bamboo shoots sprout'],['蚕起食桑','Silkworms feast on mulberry leaves'],['紅花栄','Safflowers bloom'],['麦秋至','Wheat ripens'],['蟷螂生','Praying mantises hatch'],['腐草為螢','Fireflies rise from the grass'],['梅子黄','Plums turn yellow'],['乃東枯','Self-heal withers'],['菖蒲華','Irises bloom'],['半夏生','Crow-dipper sprouts'],['温風至','Warm winds blow'],['蓮始開','First lotus blossoms'],['鷹乃学習','Hawks learn to fly'],['桐始結花','Paulownia trees bear seeds'],['土潤溽暑','Earth is damp, air is humid'],['大雨時行','Great rains sometimes fall'],['涼風至','Cool winds blow'],['寒蝉鳴','Evening cicadas sing'],['蒙霧升降','Thick fog descends'],['綿柎開','Cotton flowers bloom'],['天地始粛','Heat starts to die down'],['禾乃登','Rice ripens'],['草露白','Dew glistens white on grass'],['鶺鴒鳴','Wagtails sing'],['玄鳥去','Swallows leave'],['雷乃収声','Thunder ceases'],['蟄虫坏戸','Insects hole up underground'],['水始涸','Farmers drain the fields'],['鴻雁来','Wild geese return'],['菊花開','Chrysanthemums bloom'],['蟋蟀在戸','Crickets chirp around the door'],['霜始降','First frost'],['霎時施','Light rains sometimes fall'],['楓蔦黄','Maple leaves and ivy turn yellow'],['山茶始開','Camellias bloom'],['地始凍','Land starts to freeze'],['金盞香','Daffodils bloom'],['虹蔵不見','Rainbows hide'],['朔風払葉','North wind blows the leaves from the trees'],['橘始黄','Tachibana citrus turns yellow'],['閉塞成冬','Cold sets in, winter begins'],['熊蟄穴','Bears start hibernating'],['鱖魚群','Salmon gather and swim upstream'],['乃東生','Self-heal sprouts'],['麋角解','Deer shed their antlers'],['雪下出麦','Wheat sprouts under the snow'],['芹乃栄','Parsley flourishes'],['水泉動','Springs thaw'],['雉始雊','Pheasants start to call'],['款冬華','Butterburs bud'],['水沢腹堅','Ice thickens on the streams'],['鶏始乳','Hens start laying eggs']];
+const JA = /^ja\b/i.test(navigator.language || '');
+const WEEK_JA = ['日', '月', '火', '水', '木', '金', '土'], WEEK_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/* the sky at a moment of today: where the scene's light stands, the moonlight, and a line for the corner */
+function skyAt(d, hour) {
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+  const S = sunOn(day);
+  sunPeak = Math.min(66, Math.max(40, 56 + 0.5 * (S.alt - 47)));       /* a gentle echo of the season's noon height */
+  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() + hour * 3600000;
+  const age = moonAge(at);
+  const lit = (1 - Math.cos(2 * Math.PI * age / 29.530588861)) / 2;   /* share of the disc in sunlight */
+  const transit = (S.noon + age * 24 / 29.530588861) % 24;              /* the moon crosses the meridian later each day */
+  const off = Math.abs(((hour - transit) % 24 + 36) % 24 - 12);
+  const up = 1 - Math.min(1, Math.max(0, (off - 5) / 2));               /* above the horizon about six hours either side */
+  const ko = Math.floor((((sunOn(new Date(at)).lon - 315) % 360) + 360) % 360 / 5), sk = Math.floor(ko / 3);
+  const y = d.getFullYear(), mo = d.getMonth(), dd = d.getDate(), wd = d.getDay(), a = age.toFixed(1);
+  return {
+    light: modelHour(hour, S),
+    moon: 0.12 + 0.88 * lit * up,                                       /* a dark night without it */
+    line: JA ? `${y}.${pad(mo + 1)}.${pad(dd)} ${WEEK_JA[wd]} · 月齢 ${a} · ${SEKKI[sk][0]} ${KO[ko][0]}`
+             : `${WEEK_EN[wd]} ${dd} ${MON_EN[mo]} ${y} · moon, day ${a} · ${KO[ko][1]} (${SEKKI[sk][1]})`
+  };
+}
+
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function nowInfo() {
   const d = new Date();
@@ -39,6 +138,7 @@ function nowInfo() {
   return {
     key: pad(hh) + ':' + pad(mm),
     hour,
+    sky: skyAt(debugDay || d, hour),
     date: d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()) + ' ' + DAYS[d.getDay()]
   };
 }
@@ -93,7 +193,7 @@ function applyWallCss(L) {
 }
 
 let info = nowInfo();
-let todL = lightAt(info.hour);
+let todL = lightAt(info.sky.light);
 let fadeCol = applyWallCss(todL);          /* paints immediately, before WebGL is up */
 
 /* ------------------------------------------------------------------ */
@@ -861,7 +961,7 @@ function updateSun(t, dt) {
    farther a leaf is from the wall, the softer its shadow and the rounder the
    light that comes through its gaps.                                         */
 const SUN_R = 0.0055;                        /* angular radius (rad), a little larger than the real sun's */
-const SUNRISE = 5.5, SUNSET = 19.0;
+const SUNRISE = MODEL_RISE, SUNSET = MODEL_SET;
 function arc(u, az, eLo, eHi) {
   const A = (-az + 2 * az * u) * Math.PI / 180;
   const E = (eLo + (eHi - eLo) * Math.sin(Math.PI * u)) * Math.PI / 180;
@@ -874,7 +974,7 @@ function lightDir(h) {
   const dayLen = SUNSET - SUNRISE;
   const uD = (h - SUNRISE) / dayLen;
   const uN = ((((h - SUNSET) % 24) + 24) % 24) / (24 - dayLen);
-  const sun = arc(clamp(uD, 0, 1), 58, 10, 56), moon = arc(clamp(uN, 0, 1), 50, 12, 36);
+  const sun = arc(clamp(uD, 0, 1), 58, 10, sunPeak), moon = arc(clamp(uN, 0, 1), 50, 12, 36);
   const w = smooth(-0.04, 0.04, uD) * (1 - smooth(0.96, 1.04, uD));
   const v = sun.map((x, i) => x * w + moon[i] * (1 - w));
   const n = Math.hypot(v[0], v[1], v[2]);
@@ -1305,14 +1405,21 @@ const tmEl = document.getElementById('tm');
 let tmKey = '', tmInk = -1;
 function updateCaption() {
   if (!tmEl) return;
-  if (info.key !== tmKey) { tmKey = info.key; tmEl.textContent = tmKey; }
+  if (info.key !== tmKey) {
+    tmKey = info.key;
+    tmEl.querySelector('.t').textContent = tmKey;
+    tmEl.querySelector('.a').textContent = info.sky.line;
+  }
   const ink = Math.round(smooth(0.45, 0.85, todL.si) * 20) / 20;   /* dark ink by day, light by night */
   if (ink !== tmInk) { tmInk = ink; tmEl.style.setProperty('--day', ink); }
   tmEl.classList.toggle('on', !dbg.on);                            /* the playground bar has its own */
 }
 function refreshInfo() {
   info = nowInfo();
-  todL = lightAt(info.hour);
+  todL = lightAt(info.sky.light);
+  /* at night the light is the moon's: its phase, and whether it is up */
+  const m = info.sky.light, night = m >= 12 ? smooth(18.8, 20.2, m) : 1 - smooth(4.6, 5.9, m);
+  todL.si *= 1 + (info.sky.moon - 1) * night;
   updateCaption();
   fadeCol = applyWallCss(todL);
   canvas.setAttribute('aria-label', info.key);
@@ -1366,7 +1473,7 @@ function frame(now) {
   const fadeE = 1 - Math.pow(1 - fade, 3);
 
   /* the light: a direction from the hour, nudged a touch by the pointer */
-  const s0 = lightDir(info.hour);
+  const s0 = lightDir(info.sky.light);
   const k = [s0[0] / s0[2] + 0.04 * sunX.x, s0[1] / s0[2] + 0.04 * sunY.x];
   kNow = k;
   const sz = 1 / Math.hypot(k[0], k[1], 1);
@@ -1564,7 +1671,7 @@ function setupDebugBar() {
   /* the track shows the day's light: sun-lit wall colour hour by hour */
   const cv = bar.querySelector('canvas'), c2 = cv.getContext('2d');
   for (let x = 0; x < cv.width; x++) {
-    const c = litColor(lightAt(x / cv.width * 24));
+    const c = litColor(lightAt(modelHour(x / cv.width * 24, sunOn(new Date()))));
     c2.fillStyle = css(c); c2.fillRect(x, 0, 1, cv.height);
   }
   dbgEls.speed.value = String(dbg.speed);
