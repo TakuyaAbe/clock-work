@@ -547,7 +547,7 @@ function renderPlaster() {
 }
 function resize() {
   needsResize = false;
-  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  dpr = Math.min(window.devicePixelRatio || 1, 2);   /* native on Retina: the plaster stays crisp under the soft light */
   cssW = Math.max(1, canvas.clientWidth || window.innerWidth);
   cssH = Math.max(1, canvas.clientHeight || window.innerHeight);
   if (!(cssW === lastCssW && Math.abs(cssH - layoutH) / layoutH < 0.2)) layoutH = cssH;
@@ -1300,9 +1300,20 @@ canvas.addEventListener('webglcontextrestored', () => {
 });
 
 let lastDraw = -1e9, lastInfoAt = -1e9;
+/* a small serif time in the corner, the one crisp thing on the screen */
+const tmEl = document.getElementById('tm');
+let tmKey = '', tmInk = -1;
+function updateCaption() {
+  if (!tmEl) return;
+  if (info.key !== tmKey) { tmKey = info.key; tmEl.textContent = tmKey; }
+  const ink = Math.round(smooth(0.45, 0.85, todL.si) * 20) / 20;   /* dark ink by day, light by night */
+  if (ink !== tmInk) { tmInk = ink; tmEl.style.setProperty('--day', ink); }
+  tmEl.classList.toggle('on', !dbg.on);                            /* the playground bar has its own */
+}
 function refreshInfo() {
   info = nowInfo();
   todL = lightAt(info.hour);
+  updateCaption();
   fadeCol = applyWallCss(todL);
   canvas.setAttribute('aria-label', info.key);
 }
@@ -1311,10 +1322,10 @@ refreshInfo();
 function frame(now) {
   requestAnimationFrame(frame);
   if (lost) return;
-  /* ~30 fps when nothing is happening; full rate while arriving, changing or being touched */
-  const idle = clock > 2.5 && !trans.active && (clock - pointer.last) > 2.5 && !dbg.playing;
+  /* ~30 fps throughout: the light moves slowly, and every frame is drawn at the screen's full resolution */
+  const idle = true;
   const since = now - lastDraw;
-  if (idle && since < 1000 / 30 - 4) return;
+  if (since < 1000 / 30 - 4) return;
   const raw = since / 1000;
   const dt = Math.min(0.05, Math.max(0, raw));
   lastDraw = now;
@@ -1488,7 +1499,7 @@ function frame(now) {
   gl.uniform3f(C.u('uViewC'), 0.5 * W, (cssH - 0.5 * layoutH) * (H / cssH), layoutH * (H / cssH));
   gl.uniform4f(C.u('uRectN'), occRect[0], occRect[1], 1 / occRect[2], 1 / occRect[3]);
   gl.uniform4f(C.u('uSunN'), sd[0], sd[1], 1 / sz, 0);
-  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), 1.35 / layoutH), 0, 0);   /* the clock out of focus by about 1.35 CSS px */
+  gl.uniform3f(C.u('uRadN'), Math.hypot(penum(Z0 + 0.01), 2.2 / layoutH), 0, 0);   /* the clock out of focus by about 2.2 CSS px */
   gl.uniform2f(C.u('uGlow'), L.glow, 0.20 + 0.10 * (1 - L.si));
   drawTri();
 

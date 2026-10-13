@@ -14,7 +14,7 @@ Everything on the wall is a shadow of something in front of it, cast by a sun th
 - Moving the pointer nudges the wind and the sun a little; it works without a mouse
 - Each new tab sets the trees out afresh: the branches, the leaves and the gaps in the canopy fall differently every time, while the clock stays in the middle
 - Respects `prefers-reduced-motion` (slower wind, no gusts, a shorter and fainter cloud)
-- Rendering is capped at about 30 fps when idle, with device pixel ratio capped at 1.5
+- Drawn at the screen's full resolution (device pixel ratio up to 2) and about 30 fps
 
 ## Debug
 

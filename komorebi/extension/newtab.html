@@ -10,6 +10,15 @@
 html,body{margin:0;height:100%;background:var(--wall);overflow:hidden}
 body{-webkit-user-select:none;user-select:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+/* the time, small and crisp: a hairline, then the hour and minute in a serif */
+#tm{--day:1;position:fixed;left:24px;bottom:32px;z-index:5;display:flex;align-items:center;gap:12px;pointer-events:none;
+  font:400 15px/1 "Iowan Old Style","Palatino Linotype",Palatino,"Hiragino Mincho ProN",Georgia,serif;
+  font-variant-numeric:lining-nums tabular-nums;letter-spacing:.1em;
+  color:color-mix(in srgb,#2b2520 calc(var(--day) * 100%),#f8f3ea);
+  text-shadow:0 0 8px color-mix(in srgb,rgba(250,246,238,.45) calc(var(--day) * 100%),rgba(24,22,20,.45));
+  opacity:0;transition:opacity 1.6s}
+#tm::before{content:"";width:28px;height:1px;background:currentColor;opacity:.75}
+#tm.on{opacity:.82}
 /* the playground (debug bar) toggle: a faint ring in the corner, a 40px target, a serif tooltip to its left on hover */
 #pg{position:fixed;right:8px;bottom:19px;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;
   cursor:pointer;z-index:11;-webkit-tap-highlight-color:transparent}
@@ -27,6 +36,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 </head>
 <body>
 <canvas id="c" role="img" aria-label=""></canvas>
+<div id="tm" aria-hidden="true"></div>
 <button id="pg" type="button" aria-label="playground" aria-controls="kc-dbg" aria-expanded="false"></button>
 <script src="newtab.js"></script>
 </body>
