@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>New Tab</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+html,body{margin:0;height:100%;background:#16171a;overflow:hidden}
+/* the clock, as it runs on its own, filling the tab; faded in once it has drawn */
+#f{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;opacity:0;transition:opacity .8s}
+#f.on{opacity:1}
+/* the chooser: a faint mark in the upper left that opens to the clock's name, and a short list */
+#sw{position:fixed;left:10px;top:10px;z-index:30;
+  font:14px/1 "Iowan Old Style","Palatino Linotype",Palatino,"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif;letter-spacing:.02em;color:#f3efe8}
+#sw>button{display:flex;align-items:center;gap:0;height:36px;padding:0 12px 0 10px;border:0;border-radius:18px;background:transparent;
+  color:inherit;font:inherit;letter-spacing:inherit;cursor:pointer;opacity:.4;transition:opacity .4s,background .4s,gap .35s}
+#sw>button i{display:block;width:13px;height:13px;box-sizing:border-box;border-radius:50%;border:1.5px solid currentColor;
+  box-shadow:0 0 0 1px rgba(40,34,28,.16),inset 0 0 0 2.5px transparent;position:relative}
+#sw>button i::after{content:"";position:absolute;inset:3px;border-radius:50%;background:currentColor;opacity:.7}
+#sw>button span{max-width:0;overflow:hidden;opacity:0;white-space:nowrap;transition:max-width .35s,opacity .3s}
+#sw>button:hover,#sw>button:focus-visible,#sw.open>button{opacity:1;gap:10px;background:rgba(20,22,26,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#sw>button:hover span,#sw>button:focus-visible span,#sw.open>button span{max-width:18em;opacity:1}
+#sw>button:focus-visible{outline:2px solid rgba(255,255,255,.85);outline-offset:2px}
+#menu{margin-top:6px;padding:6px;min-width:15em;border-radius:12px;background:rgba(20,22,26,.8);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:0 8px 32px rgba(0,0,0,.25)}
+#menu[hidden]{display:none}
+#menu button{display:flex;align-items:baseline;gap:10px;width:100%;padding:9px 12px;border:0;border-radius:8px;background:transparent;
+  color:inherit;font:inherit;letter-spacing:inherit;text-align:left;cursor:pointer;opacity:.78}
+#menu button:hover,#menu button:focus-visible{background:rgba(255,255,255,.08);opacity:1;outline:none}
+#menu button::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;transform:translateY(-1px);background:currentColor;opacity:0}
+#menu button[aria-checked="true"]{opacity:1}
+#menu button[aria-checked="true"]::before{opacity:.9}
+#menu small{margin-left:auto;padding-left:14px;font-size:11px;letter-spacing:.06em;opacity:.55;font-variant-numeric:tabular-nums}
+#menu hr{margin:5px 10px;border:0;border-top:1px solid rgba(255,255,255,.12)}
+</style>
+</head>
+<body>
+<iframe id="f" title=""></iframe>
+<nav id="sw">
+<button id="sw-b" type="button" aria-haspopup="menu" aria-controls="menu" aria-expanded="false"><i aria-hidden="true"></i><span></span></button>
+<div id="menu" role="menu" hidden></div>
+</nav>
+<script src="clocks.js"></script>
+<script src="newtab.js"></script>
+</body>
+</html>

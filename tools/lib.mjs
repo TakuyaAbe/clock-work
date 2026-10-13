@@ -41,7 +41,7 @@ function serve() {
     const server = createServer(async (req, res) => {
       const file = resolve(ROOT, "." + decodeURIComponent(new URL(req.url, "http://x").pathname));
       if (!file.startsWith(ROOT + sep)) return res.writeHead(403).end();
-      try { res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(await readFile(file)); }
+      try { const body = await readFile(file); res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(body); }
       catch { res.writeHead(404).end(); }
     });
     server.listen(0, "127.0.0.1", () => { server.unref(); done(`http://127.0.0.1:${server.address().port}`); });
