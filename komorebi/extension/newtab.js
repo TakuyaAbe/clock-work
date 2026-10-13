@@ -1497,7 +1497,7 @@ function frame(now) {
   updateWind(wt, dt * (motion === 1 ? 1 : 0.35));
   updateSun(t, dt);
   const L = todL;
-  const cloudDepth = T.depth * (0.4 + 0.6 * smooth(0.45, 0.85, L.si));   /* a cloud over the moon takes less */
+  const cloudDepth = T.depth;                    /* the same over the moon as over the sun */
   const cloud = smooth(0.66, 0.92, vn(t * 0.018, 7.3)) * 0.6;
   const fade = smooth(0, 1.5, t);
   const fadeE = 1 - Math.pow(1 - fade, 3);
