@@ -12,34 +12,36 @@
 - **言語**: 英語（日本語を追加する場合は下の説明文を使用）
 
 ### 詳細な説明（English）
-Komorebi Clock replaces your new tab page with sunlight falling through leaves onto a plaster wall. It is a clock without numerals.
+Komorebi Clock replaces your new tab page with sunlight falling through leaves onto a plaster wall.
 
-Every shadow is cast by leaves and branches modelled in 3D and lit by a sun that follows your local time: pink at dawn, warm white in the morning, bright at noon, golden in the late afternoon, deep orange at dusk, and cool blue moonlight at night. Once a minute, the shadow of a small cloud passes over.
+Every shadow is cast by leaves and branches modelled in 3D. The light follows the real sky near you: the day stretches between today's sunrise and sunset, the sun stands higher in summer and lower in winter, and at night the moonlight shifts with the moon's phase. Once a minute, the shadow of a small cloud passes over.
 
-The time hides among the shadows. One branch reaches in from beyond the edge of the screen as the hour hand: from its tip outward, it points to the hour. From that tip grow a long, slender twig for the minutes and the thinnest twig, with a few small leaves, for the seconds. Look for it and you can read the time; look away and it is simply the shadow of a tree.
+Time hides among the shadows. A branch reaches in from beyond the edge of the screen as the hour hand, pointing outward to the hour from the knot near its tip. From that knot grow a long, slender twig for the minutes and the thinnest twig, with a few small leaves, for the seconds. Look for it, and you can read the time; look away, and it is simply the shadow of a tree.
+
+In the lower-left corner, a small line shows the time, the date, the lunar age, and the season in the old Japanese calendar (the 24 solar terms and 72 microseasons).
 
 Each new tab sets the trees out afresh, so the shadows fall a little differently every time.
 
 Click the faint ring in the lower-right corner to open the playground: scrub through the day, play it back fast, send a cloud across, or shuffle the trees.
 
-- No accounts, no settings, no tracking. The extension requests no permissions and makes no network requests.
-- No numerals or text on the wall.
+- No accounts, no settings, no tracking. The extension requests no permissions and makes no network requests; your location is estimated from your time zone.
 - Respects "reduce motion" in your system settings.
 
 ### 詳細な説明（日本語）
-新しいタブを、漆喰の壁に落ちる木漏れ日に置き換えます。数字のない時計です。
+新しいタブを、漆喰の壁に落ちる木漏れ日に置き換えます。
 
-壁の影はすべて、3Dでつくられた葉と枝が落とすものです。光は現在時刻に合わせて動く太陽から届きます。夜明けは淡い桃色、朝は温かな白、昼は明るく、夕方前は金色、日暮れは深い橙、夜は青い月明かり。1分ごとに、小さな雲の影が通り過ぎます。
+壁の影はすべて、3Dでつくられた葉と枝が落とすものです。光はあなたの近くの実際の空に合わせて動きます。今日の日の出から日の入りに合わせて1日が伸び縮みし、夏は太陽が高く、冬は低くなります。夜は月の満ち欠けに合わせて月明かりが変わります。1分ごとに、小さな雲の影が通り過ぎます。
 
-時刻は影の中に隠れています。画面の外から伸びる1本の枝が時針で、枝先から外への向きが「時」を指します。その枝先から、分を指す細長い小枝と、小さな葉をつけたいちばん細い秒の小枝が伸びています。探せば時刻が読め、目を離せばただの木の影です。
+時刻は影の中に隠れています。画面の外から伸びる枝が時針で、枝先近くの節から外への向きが時を指します。その節から、分を指す細長い小枝と、小さな葉をつけたいちばん細い秒の小枝が伸びています。探せば時刻が読め、目を離せばただの木の影です。
+
+左下に小さく、時刻と日付、月齢、二十四節気と七十二候を表示します。
 
 新しいタブを開くたびに木の配置が変わり、影の落ち方も少しずつ違います。
 
 右下の薄い丸をクリックすると playground が開きます。1日の光を早送りしたり、時刻を動かしたり、雲を流したり、木の配置を入れ替えたりできます。
 
-- アカウント・設定・トラッキングはありません。権限を一切要求せず、外部との通信もしません。
-- 壁に数字や文字は表示しません。
-- OSの「視差効果を減らす」設定に従って動きを控えめにします。
+- アカウント・設定・トラッキングはありません。権限を一切要求せず、外部との通信もしません。場所はタイムゾーンから推定します。
+- OSの「視差効果を減らす」設定に従い、動きを控えめにします。
 
 ### グラフィック
 - アイコン 128×128: `extension/icons/icon128.png`（zip に同梱）
