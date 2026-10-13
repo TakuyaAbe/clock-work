@@ -1,0 +1,9 @@
+{
+  "name": "clock-work-tools",
+  "private": true,
+  "type": "module",
+  "description": "Screenshots, frame-exact recordings and extension checks of the clocks, on the real GPU.",
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

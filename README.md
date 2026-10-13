@@ -23,6 +23,17 @@ To add the week's étude:
 3. Add an entry at the top of `site/etudes.json`: its number, slug, date, a title and one sentence in Japanese and English, and `store` once it is on the Chrome Web Store. In a Japanese title, `|` marks where the line may break.
 4. Push to `main`.
 
+## Tools
+
+`tools/` runs a clock in Chrome for Testing, headless but on the real GPU (WebGL through Metal), to check it and to make its pictures. Run `npm install --prefix tools` once, and `npx --prefix tools playwright-core install chromium` if there is no Chrome for Testing yet. Each tool describes its options at the top of its file.
+
+- `node tools/shoot.mjs komorebi/extension/newtab.html "t=10:08&seed=0"`: screenshots, one for each hash.
+- `node tools/record.mjs komorebi/extension/newtab.html --hash "seed=0" --secs 10 --mp4 out.mp4`: a video in which every frame is exact, since time inside the page is virtual.
+- `node tools/crossfade.mjs out.mp4 a.mp4 b.mp4`: clips joined with crossfades.
+- `node tools/ext-check.mjs komorebi/extension`: the clock as Chrome runs the extension, with its errors, permissions, name and description.
+- `node komorebi/store/media.mjs shots|videos`: Komorebi Clock's store images and promo videos, made again.
+- `node --test komorebi/test/sky.test.mjs`: Komorebi Clock's sun, moon and almanac against known dates.
+
 ![Kinetic Clock](kinetic/store/screenshot_1280x800_a.png)
 
 ![Komorebi Clock](komorebi/store/screenshot_1280x800_b.png)
