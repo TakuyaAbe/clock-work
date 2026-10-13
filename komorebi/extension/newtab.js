@@ -148,7 +148,7 @@ function skyAt(d, hour, exact) {
   const y = d.getFullYear(), mo = d.getMonth(), dd = d.getDate(), wd = d.getDay(), a = age.toFixed(1);
   return {
     light: modelHour(hour, S),
-    moon: 0.12 + 0.88 * lit * up,                                       /* a dark night without it */
+    moon: 0.35 + 0.65 * lit * up,                                       /* darker without it, but never black */
     line: JA ? `${y}.${pad(mo + 1)}.${pad(dd)} ${WEEK_JA[wd]} · 月齢 ${a} · ${SEKKI[sk][0]} ${KO[ko][0]}`
              : `${WEEK_EN[wd]} ${dd} ${MON_EN[mo]} ${y} · Lunar age ${a} · ${KO[ko][1]} (${SEKKI[sk][1]})`
   };
@@ -1497,6 +1497,7 @@ function frame(now) {
   updateWind(wt, dt * (motion === 1 ? 1 : 0.35));
   updateSun(t, dt);
   const L = todL;
+  const cloudDepth = T.depth * (0.4 + 0.6 * smooth(0.45, 0.85, L.si));   /* a cloud over the moon takes less */
   const cloud = smooth(0.66, 0.92, vn(t * 0.018, 7.3)) * 0.6;
   const fade = smooth(0, 1.5, t);
   const fadeE = 1 - Math.pow(1 - fade, 3);
@@ -1625,7 +1626,7 @@ function frame(now) {
   gl.uniform3f(C.u('uFadeC'), fadeCol[0], fadeCol[1], fadeCol[2]);
   gl.uniform1f(C.u('uFade'), fadeE);
   gl.uniform4f(C.u('uCloud'), tt, T.down, T.hold, T.up);
-  gl.uniform2f(C.u('uCloud2'), T.depth, T.lag);
+  gl.uniform2f(C.u('uCloud2'), cloudDepth, T.lag);
   gl.uniform2f(C.u('uRelD'), sd[0], sd[1]);
   const fs = smooth(0.45, 0.95, L.si) * 0.9 + 0.1;   /* moonlight hardly splits */
   gl.uniform4f(C.u('uFx'), sd[0] * 0.007 * fs, sd[1] * 0.007 * fs * W / H, 0.016 * fs, 0.22);
@@ -1641,7 +1642,7 @@ function frame(now) {
 
   /* motes */
   let dim = 1;
-  if (tt < 100) dim = 1 - T.depth * smooth(0, T.down, tt) * (1 - smooth(T.down + T.hold, T.down + T.hold + T.up, tt - T.lag * 0.5));
+  if (tt < 100) dim = 1 - cloudDepth * smooth(0, T.down, tt) * (1 - smooth(T.down + T.hold, T.down + T.hold + T.up, tt - T.lag * 0.5));
   updateMotes(wt, dt, L.mote * fadeE * dim * (1 - 0.3 * cloud));
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE);
