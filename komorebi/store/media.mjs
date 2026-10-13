@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { shoot } from "../../tools/shoot.mjs";
-import { record } from "../../tools/record.mjs";
+import { record, encode } from "../../tools/record.mjs";
 import { crossfade } from "../../tools/crossfade.mjs";
 import { report } from "../../tools/lib.mjs";
 
@@ -53,8 +53,9 @@ if (what === "videos") {
   errors.push(...(await record(PAGE, { ...AT, hash: "seed=0", start: "2026-10-12T10:09:42+09:00", settle: 8, secs: 18, hide: "#pg",
     mp4: join(out, "komorebi_clock_daytime.mp4"), fadeIn: 0.6, fadeOut: 0.8 })).errors);
   /* the playground at x3600 from 03:30: the whole day in 24 s, so it loops */
+  const frames = join(out, "playground_frames");
   errors.push(...(await record(PAGE, { ...AT, hash: "debug&seed=0", start: "2026-10-12T10:09:42+09:00", settle: 8, secs: 24,
-    mp4: join(out, "komorebi_clock_playground_x3600.mp4"),
+    frames, keepFrames: true, mp4: join(out, "komorebi_clock_playground_x3600.mp4"),
     setup: async (p, { wait }) => {
       await p.evaluate(() => {
         const set = (k, value, ...types) => {
@@ -69,6 +70,9 @@ if (what === "videos") {
       await p.click("[data-k=play]");
       await p.mouse.move(640, 300);
     } })).errors);
+  /* and a lighter copy, under the 30 MB that phones and the web will play */
+  encode(frames, join(out, "komorebi_clock_playground_x3600_small.mp4"), { secs: 24, crf: 18, maxrate: 8 });
+  rmSync(frames, { recursive: true, force: true });
 }
 
 report(errors);

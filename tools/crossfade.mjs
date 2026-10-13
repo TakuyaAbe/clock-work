@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { H264, isMain } from "./lib.mjs";
+import { h264, isMain } from "./lib.mjs";
 
 export function crossfade(out, clips, { fade = 0.8, fadeIn = 0, fadeOut = 0, fps = 30 } = {}) {
   const length = c => +execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", c]).toString();
@@ -20,7 +20,7 @@ export function crossfade(out, clips, { fade = 0.8, fadeIn = 0, fadeOut = 0, fps
   graph.push(`[${last}]${ends.filter(Boolean).join(",")}[v]`);
   mkdirSync(dirname(resolve(out)), { recursive: true });
   execFileSync("ffmpeg", ["-nostdin", "-hide_banner", "-loglevel", "error", "-y", ...clips.flatMap(c => ["-i", c]),
-    "-filter_complex", graph.join(";"), "-map", "[v]", ...H264, "-r", String(fps), out], { stdio: "inherit" });
+    "-filter_complex", graph.join(";"), "-map", "[v]", ...h264(), "-r", String(fps), out], { stdio: "inherit" });
   console.log(`${out}  ${t.toFixed(2)} s`);
   return t;
 }

@@ -20,7 +20,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { launch, pageURL, size, watch, hooks, H264, report, isMain } from "./lib.mjs";
+import { launch, pageURL, size, watch, hooks, h264, report, isMain } from "./lib.mjs";
 
 /* runs in the page before its own scripts */
 function virtualTime({ start, seed, audio, seconds }) {
@@ -121,12 +121,12 @@ export async function record(page, o = {}) {
 }
 
 /* frames f0000.jpg ... (and a WAV) into an mp4 */
-export function encode(frames, mp4, { fps = 30, secs, fadeIn = 0, fadeOut = 0, wav, wavFrom = 0 }) {
+export function encode(frames, mp4, { fps = 30, secs, fadeIn = 0, fadeOut = 0, wav, wavFrom = 0, crf, maxrate }) {
   mkdirSync(dirname(resolve(mp4)), { recursive: true });
   const fades = kind => [fadeIn && `${kind}=t=in:st=0:d=${fadeIn}`, fadeOut && `${kind}=t=out:st=${(secs - fadeOut).toFixed(3)}:d=${fadeOut}`].filter(Boolean);
   const args = ["-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-framerate", String(fps), "-i", join(frames, "f%04d.jpg")];
   if (wav) args.push("-ss", wavFrom.toFixed(3), "-t", String(secs), "-i", wav);
-  args.push("-vf", [...fades("fade"), "format=yuv420p"].join(","), ...H264, "-r", String(fps));
+  args.push("-vf", [...fades("fade"), "format=yuv420p"].join(","), ...h264({ crf, maxrate }), "-r", String(fps));
   if (wav) args.push("-af", fades("afade").join(",") || "anull", "-c:a", "aac", "-b:a", "192k", "-shortest");
   execFileSync("ffmpeg", [...args, mp4], { stdio: "inherit" });
   console.log(mp4);

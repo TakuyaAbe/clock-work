@@ -96,9 +96,9 @@ export async function override(context, spec) {
   await context.route(`**/${name}`, route => route.fulfill({ contentType: "text/javascript; charset=utf-8", body }));
 }
 
-/* H.264 that the stores, X and browsers all play */
-export const H264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "16", "-maxrate", "16M", "-bufsize", "32M",
-  "-profile:v", "high", "-pix_fmt", "yuv420p", "-movflags", "+faststart"];
+/* H.264 that the stores, X and browsers all play; a higher crf and a lower maxrate (Mbit/s) make a lighter file */
+export const h264 = ({ crf = 16, maxrate = 16 } = {}) => ["-c:v", "libx264", "-preset", "slow", "-crf", String(crf),
+  "-maxrate", `${maxrate}M`, "-bufsize", `${maxrate * 2}M`, "-profile:v", "high", "-pix_fmt", "yuv420p", "-movflags", "+faststart"];
 
 export const isMain = url => !!process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === url;
 
