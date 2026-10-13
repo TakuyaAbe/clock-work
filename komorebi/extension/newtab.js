@@ -18,7 +18,8 @@ function readHash() {
   const m = /t=(\d{1,2}):(\d{2})/.exec(h);
   debugMin = m ? (clampI(+m[1], 0, 23) * 60 + clampI(+m[2], 0, 59)) : null;
   const dm = /date=(\d{4})-(\d{2})-(\d{2})/.exec(h);                /* #date=YYYY-MM-DD: another day's sun and moon */
-  debugDay = dm ? new Date(+dm[1], +dm[2] - 1, +dm[3], 12) : null;
+  const dd = dm && new Date(+dm[1], +dm[2] - 1, +dm[3], 12);
+  debugDay = dd && dd.getMonth() === +dm[2] - 1 && dd.getDate() === +dm[3] ? dd : null;     /* no 13th months */
   if (/debug/.test(h)) dbg.on = true;
 }
 function clampI(v, a, b) { return Math.min(b, Math.max(a, v | 0)); }
@@ -40,24 +41,35 @@ const ZONES = {
   'America/Chicago': [41.88, -87.63], 'America/Denver': [39.74, -104.99], 'America/Los_Angeles': [34.05, -118.24],
   'America/Vancouver': [49.28, -123.12], 'America/Mexico_City': [19.43, -99.13], 'America/Sao_Paulo': [-23.55, -46.63],
   'America/Argentina/Buenos_Aires': [-34.6, -58.38], 'Australia/Sydney': [-33.87, 151.21], 'Australia/Melbourne': [-37.81, 144.96],
-  'Australia/Perth': [-31.95, 115.86], 'Pacific/Auckland': [-36.85, 174.76], 'Pacific/Honolulu': [21.31, -157.86]
+  'Australia/Perth': [-31.95, 115.86], 'Pacific/Auckland': [-36.85, 174.76], 'Pacific/Honolulu': [21.31, -157.86],
+  /* the older names that Chrome may report */
+  'Asia/Calcutta': [28.61, 77.21], 'America/Buenos_Aires': [-34.6, -58.38], 'Asia/Saigon': [10.82, 106.63],
+  'Asia/Ho_Chi_Minh': [10.82, 106.63], 'Asia/Katmandu': [27.72, 85.32], 'Asia/Kathmandu': [27.72, 85.32],
+  'Europe/Kiev': [50.45, 30.52], 'Europe/Kyiv': [50.45, 30.52]
 };
 const PLACE = (() => {
   let tz = '';
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* none */ }
   if (ZONES[tz]) return ZONES[tz];
   const south = /^(Australia|Antarctica)\/|Sao_Paulo|Buenos_Aires|Santiago|Johannesburg|Auckland/.test(tz);
-  return [south ? -34 : 35, -new Date().getTimezoneOffset() / 4];    /* the zone's own meridian */
+  const y = new Date().getFullYear();     /* the zone's standard meridian: the larger offset of January and July is not summer time */
+  const std = Math.max(new Date(y, 0, 1).getTimezoneOffset(), new Date(y, 6, 1).getTimezoneOffset());
+  return [south ? -34 : 35, -std / 4];
 })();
 const RAD = Math.PI / 180;
 /* the sun on a day (low-precision almanac formulas): ecliptic longitude, noon, sunrise and sunset in local hours */
 function sunOn(day) {
-  const n = day.getTime() / 86400000 + 2440587.5 - 2451545.0;
-  const L = 280.460 + 0.9856474 * n, g = (357.528 + 0.9856003 * n) * RAD;
-  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD, eps = (23.439 - 0.0000004 * n) * RAD;
+  const T = (day.getTime() / 86400000 + 2440587.5 - 2451545.0) / 36525;    /* Julian centuries from J2000 */
+  const L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T;
+  const M = (357.52911 + 35999.05029 * T - 0.0001537 * T * T) * RAD;
+  const C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * Math.sin(M) + (0.019993 - 0.000101 * T) * Math.sin(2 * M) + 0.000289 * Math.sin(3 * M);
+  const Om = (125.04 - 1934.136 * T) * RAD;
+  const lam = (L0 + C - 0.00569 - 0.00478 * Math.sin(Om)) * RAD;           /* apparent longitude: aberration, nutation */
+  const eps = (23.439291 - 0.0130042 * T + 0.00256 * Math.cos(Om)) * RAD;
   const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
   const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
-  const eot = Math.atan2(Math.sin(L * RAD - ra), Math.cos(L * RAD - ra)) / RAD * 4;          /* minutes */
+  const e0 = (L0 - 0.0057183) * RAD - ra;
+  const eot = Math.atan2(Math.sin(e0), Math.cos(e0)) / RAD * 4;             /* equation of time, minutes */
   const [lat, lon] = PLACE, phi = lat * RAD;
   const noon = 12 - eot / 60 - lon / 15 - day.getTimezoneOffset() / 60;
   const c = (Math.sin(-0.833 * RAD) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
@@ -102,18 +114,28 @@ const KO = [['東風解凍','East wind melts the ice'],['黄鶯睍睆','Bush war
 const JA = /^ja\b/i.test(navigator.language || '');
 const WEEK_JA = ['日', '月', '火', '水', '木', '金', '土'], WEEK_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/* the light of a moment: the tuned light at the stretched hour, and at night the moon's share of it */
+function skyLight(sky) {
+  const L = lightAt(sky.light), m = sky.light;
+  const ease = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };  /* runs before smooth() exists */
+  const night = m >= 12 ? ease(18.8, 20.2, m) : 1 - ease(4.6, 5.9, m);
+  L.si *= 1 + (sky.moon - 1) * night;
+  return L;
+}
 /* the sky at a moment of today: where the scene's light stands, the moonlight, and a line for the corner */
 function skyAt(d, hour) {
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
   const S = sunOn(day);
   sunPeak = Math.min(66, Math.max(40, 56 + 0.5 * (S.alt - 47)));       /* a gentle echo of the season's noon height */
-  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() + hour * 3600000;
+  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, Math.round(hour * 3600000)).getTime();
   const age = moonAge(at);
   const lit = (1 - Math.cos(2 * Math.PI * age / 29.530588861)) / 2;   /* share of the disc in sunlight */
   const transit = (S.noon + age * 24 / 29.530588861) % 24;              /* the moon crosses the meridian later each day */
   const off = Math.abs(((hour - transit) % 24 + 36) % 24 - 12);
   const up = 1 - Math.min(1, Math.max(0, (off - 5) / 2));               /* above the horizon about six hours either side */
-  const ko = Math.floor((((sunOn(new Date(at)).lon - 315) % 360) + 360) % 360 / 5), sk = Math.floor(ko / 3);
+  /* like a printed calendar, a solar term or short season begins on the day it turns: read the sun at the day's end */
+  const eod = sunOn(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1));
+  const ko = Math.floor((((eod.lon - 315) % 360) + 360) % 360 / 5), sk = Math.floor(ko / 3);
   const y = d.getFullYear(), mo = d.getMonth(), dd = d.getDate(), wd = d.getDay(), a = age.toFixed(1);
   return {
     light: modelHour(hour, S),
@@ -193,7 +215,7 @@ function applyWallCss(L) {
 }
 
 let info = nowInfo();
-let todL = lightAt(info.sky.light);
+let todL = skyLight(info.sky);
 let fadeCol = applyWallCss(todL);          /* paints immediately, before WebGL is up */
 
 /* ------------------------------------------------------------------ */
@@ -610,7 +632,7 @@ function drawTri() {
 let W = 1, H = 1, dpr = 1, cssW = 1, cssH = 1, layoutH = 1, lastCssW = -1;
 let halfW = 0.5, yBot = -0.5, needsResize = true;
 let plasterDirty = false, plasterTimer = 0;
-let quality = 1;
+let quality = 1, dprCap = 2;
 
 function makeLightTarget() {
   const lh = Math.max(240, Math.round(Math.min(H, Math.max(520, Math.round(H * 0.5)), 900) * quality));
@@ -647,7 +669,7 @@ function renderPlaster() {
 }
 function resize() {
   needsResize = false;
-  dpr = Math.min(window.devicePixelRatio || 1, 2);   /* native on Retina: the plaster stays crisp under the soft light */
+  dpr = Math.min(window.devicePixelRatio || 1, dprCap);   /* native on Retina: the plaster stays crisp under the soft light */
   cssW = Math.max(1, canvas.clientWidth || window.innerWidth);
   cssH = Math.max(1, canvas.clientHeight || window.innerHeight);
   if (!(cssW === lastCssW && Math.abs(cssH - layoutH) / layoutH < 0.2)) layoutH = cssH;
@@ -1380,6 +1402,8 @@ function adaptQuality(raw, t, perturbed, idle) {
     if (lastUp) needGood = Math.min(64, needGood * 2);
     lastUp = false; goodWins = 0;
     makeLightTarget(); skipPerf = 3;
+  } else if (avg > 0.026 && dprCap > 1.5 && (window.devicePixelRatio || 1) > 1.5) {
+    dprCap = 1.5; needsResize = true; skipPerf = 3;         /* still slow at the lowest quality: fewer pixels */
   } else if (avg < 0.0185) {
     if (quality < 1 && ++goodWins >= needGood) {
       quality = Math.min(1, quality / 0.85);
@@ -1402,24 +1426,19 @@ canvas.addEventListener('webglcontextrestored', () => {
 let lastDraw = -1e9, lastInfoAt = -1e9;
 /* a small serif time in the corner, the one crisp thing on the screen */
 const tmEl = document.getElementById('tm');
-let tmKey = '', tmInk = -1;
+let tmKey = '', tmLine = '', tmInk = -1;
+if (tmEl) tmEl.lang = JA ? 'ja' : 'en';
 function updateCaption() {
   if (!tmEl) return;
-  if (info.key !== tmKey) {
-    tmKey = info.key;
-    tmEl.querySelector('.t').textContent = tmKey;
-    tmEl.querySelector('.a').textContent = info.sky.line;
-  }
+  if (info.key !== tmKey) { tmKey = info.key; tmEl.querySelector('.t').textContent = tmKey; }
+  if (info.sky.line !== tmLine) { tmLine = info.sky.line; tmEl.querySelector('.a').textContent = tmLine; }
   const ink = Math.round(smooth(0.45, 0.85, todL.si) * 20) / 20;   /* dark ink by day, light by night */
   if (ink !== tmInk) { tmInk = ink; tmEl.style.setProperty('--day', ink); }
   tmEl.classList.toggle('on', !dbg.on);                            /* the playground bar has its own */
 }
 function refreshInfo() {
   info = nowInfo();
-  todL = lightAt(info.sky.light);
-  /* at night the light is the moon's: its phase, and whether it is up */
-  const m = info.sky.light, night = m >= 12 ? smooth(18.8, 20.2, m) : 1 - smooth(4.6, 5.9, m);
-  todL.si *= 1 + (info.sky.moon - 1) * night;
+  todL = skyLight(info.sky);                        /* at night the light is the moon's: its phase, and whether it is up */
   updateCaption();
   fadeCol = applyWallCss(todL);
   canvas.setAttribute('aria-label', info.key);
@@ -1668,12 +1687,8 @@ function setupDebugBar() {
   document.body.appendChild(bar);
   const q = k => bar.querySelector(`[data-k="${k}"]`);
   dbgEls = { play: q('play'), speed: q('speed'), time: q('time'), label: q('label'), seed: q('seed') };
-  /* the track shows the day's light: sun-lit wall colour hour by hour */
-  const cv = bar.querySelector('canvas'), c2 = cv.getContext('2d');
-  for (let x = 0; x < cv.width; x++) {
-    const c = litColor(lightAt(modelHour(x / cv.width * 24, sunOn(new Date()))));
-    c2.fillStyle = css(c); c2.fillRect(x, 0, 1, cv.height);
-  }
+  dbgEls.track = bar.querySelector('canvas');
+  drawTrack();
   dbgEls.speed.value = String(dbg.speed);
   const realMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; };
   dbgEls.play.addEventListener('click', () => {
@@ -1687,13 +1702,24 @@ function setupDebugBar() {
   q('now').addEventListener('click', () => { dbg.minutes = null; dbg.playing = false; });
   q('shuffle').addEventListener('click', () => {
     reseed(1 + Math.floor(Math.random() * 999999));
-    const h = (location.hash || '#').replace(/[#&]?seed=\d+/, '');
-    history.replaceState(null, '', (h.length > 1 ? h + '&' : '#') + 'seed=' + sceneSeed);
+    const parts = (location.hash || '').replace(/^#/, '').split('&').filter(p => p && !/^seed=/.test(p));
+    history.replaceState(null, '', '#' + parts.concat('seed=' + sceneSeed).join('&'));
   });
   bar.addEventListener('pointerdown', e => e.stopPropagation());
   dbgBar = bar;
 }
+/* the track shows the shown day's light: sun- or moon-lit wall colour hour by hour */
+let trackDay = '';
+function drawTrack() {
+  const cv = dbgEls.track, c2 = cv.getContext('2d'), day = debugDay || new Date();
+  trackDay = day.toDateString();
+  for (let x = 0; x < cv.width; x++) {
+    c2.fillStyle = css(litColor(skyLight(skyAt(day, x / cv.width * 24))));
+    c2.fillRect(x, 0, 1, cv.height);
+  }
+}
 function updateDebugBar() {
+  if ((debugDay || new Date()).toDateString() !== trackDay) drawTrack();     /* another day: #date, or midnight */
   const t = performance.now();
   if (t - dbgLastUi < 80) return;
   dbgLastUi = t;

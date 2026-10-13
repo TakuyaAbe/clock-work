@@ -9,7 +9,7 @@ Everything on the wall is a shadow of something in front of it, cast by a sun th
 ![screenshot](store/screenshot_1280x800_a.png)
 
 - Manifest V3, no permissions, no network requests
-- WebGL 1 and vanilla JavaScript, no build step, no text on screen
+- WebGL 1 and vanilla JavaScript, no build step; no text on the wall, only a small time and almanac line in the corner
 - Shadows are computed from 3D leaves and twigs: each layer is projected along the sun onto the wall, then averaged over the sun's disc
 - Moving the pointer nudges the wind and the sun a little; it works without a mouse
 - Each new tab sets the trees out afresh: the branches, the leaves and the gaps in the canopy fall differently every time, while the clock stays in the middle
