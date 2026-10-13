@@ -487,7 +487,7 @@ void main(){
   amb *= mix(vec3(1.05, 1.0, .93), vec3(.97, 1.0, 1.045), smoothstep(0., 1., uv.y));
 
   /* a cloud passes on the minute: its soft edge sweeps across the wall */
-  float s = uCloud.x - uCloud2.y * (uv.x * .85 + .15 * (1. - uv.y) + .12 * mottle);
+  float s = uCloud.x - uCloud2.y * (uv.x * .85 + .15 * (1. - uv.y) + .08 * sin(uv.y * 5.3 + 1.3) + .04 * sin(uv.y * 11.7 + 4.1) + .06 * mottle);  /* a soft, wavering edge */
   float env = smoothstep(0., uCloud.y, s) * (1. - smoothstep(uCloud.y + uCloud.z, uCloud.y + uCloud.z + uCloud.w, s));
   vec3 sunC = uSunC * (1. - uCloud2.x * env);
 
@@ -1386,8 +1386,8 @@ let shownKey = info.key;
 const trans = { active: false, t0: 0, to: '' };
 function transTiming() {
   return motion === 1
-    ? { down: 1.4, hold: 0.4, up: 2.2, lag: 0.6, depth: 0.42 }
-    : { down: 0.3, hold: 0.0, up: 0.5, lag: 0.0, depth: 0.12 };
+    ? { down: 1.6, hold: 1.2, up: 2.4, lag: 2.6, depth: 0.85 }     /* its edge crosses the wall in about 2.6 s */
+    : { down: 0.8, hold: 0.4, up: 1.2, lag: 0.0, depth: 0.3 };
 }
 function startTransition(key) {
   trans.active = true; trans.t0 = clock; trans.to = key;
