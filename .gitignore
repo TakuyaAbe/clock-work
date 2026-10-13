@@ -1,9 +1,10 @@
 .DS_Store
 *.zip
-# local only: built packages, promo videos, design history
+# local only: built packages, promo videos, design history, capture scripts
 dist/
 media/
 attic/
+.tools/
 node_modules/
 .wrangler/
 .wrangler-home/
