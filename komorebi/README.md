@@ -31,7 +31,7 @@ To preview a fixed time of day, open the page with a hash such as `newtab.html#t
 ## Package for the Chrome Web Store
 
 ```sh
-mkdir -p ../dist/komorebi && cd extension && zip -rqX ../../dist/komorebi/komorebi-clock-newtab.zip manifest.json newtab.html newtab.js icons
+mkdir -p ../dist/komorebi && cd extension && zip -rqX ../../dist/komorebi/komorebi-clock-newtab.zip manifest.json newtab.html newtab.js icons _locales
 ```
 
 Store graphics are in [`store/`](store/).

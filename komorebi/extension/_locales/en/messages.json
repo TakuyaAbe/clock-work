@@ -1,0 +1,13 @@
+{
+  "name": {
+    "message": "Komorebi Clock New Tab",
+    "description": "The extension's name in the store and in Chrome."
+  },
+  "short_name": {
+    "message": "Komorebi Clock"
+  },
+  "description": {
+    "message": "A quiet new tab: soft tree shadows on a plaster wall, cast by the sun of the hour. One branch gently tells the time.",
+    "description": "The store summary, 132 characters at most."
+  }
+}

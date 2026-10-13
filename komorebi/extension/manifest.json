@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Komorebi Clock New Tab",
-  "short_name": "Komorebi Clock",
+  "name": "__MSG_name__",
+  "short_name": "__MSG_short_name__",
   "version": "1.0.2",
-  "description": "A quiet new tab: soft tree shadows on a plaster wall, cast by the sun of the hour. One branch gently tells the time.",
+  "description": "__MSG_description__",
+  "default_locale": "en",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },

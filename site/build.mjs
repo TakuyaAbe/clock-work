@@ -48,7 +48,7 @@ const BACK = `<style>
 </style>`;
 for (const e of etudes) {
   const dir = join(OUT, e.slug);
-  cpSync(join(ROOT, e.src), dir, { recursive: true, filter: s => !s.endsWith('manifest.json') });
+  cpSync(join(ROOT, e.src), dir, { recursive: true, filter: s => !s.endsWith('manifest.json') && !s.includes('_locales') });
   cpSync(join(ROOT, e.image), join(OUT, 'img', `${e.slug}.jpg`));
   let html = readFileSync(join(dir, 'newtab.html'), 'utf8');
   rmSync(join(dir, 'newtab.html'));
