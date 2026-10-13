@@ -19,7 +19,7 @@ function readHash() {
   debugMin = m ? (clampI(+m[1], 0, 23) * 60 + clampI(+m[2], 0, 59)) : null;
   const dm = /date=(\d{4})-(\d{2})-(\d{2})/.exec(h);                /* #date=YYYY-MM-DD: another day's sun and moon */
   const dd = dm && new Date(+dm[1], +dm[2] - 1, +dm[3], 12);
-  debugDay = dd && dd.getMonth() === +dm[2] - 1 && dd.getDate() === +dm[3] ? dd : null;     /* no 13th months */
+  debugDay = dd && dd.getFullYear() === +dm[1] && dd.getMonth() === +dm[2] - 1 && dd.getDate() === +dm[3] ? dd : null;   /* a real day */
   if (/debug/.test(h)) dbg.on = true;
 }
 function clampI(v, a, b) { return Math.min(b, Math.max(a, v | 0)); }
@@ -42,6 +42,14 @@ const ZONES = {
   'America/Vancouver': [49.28, -123.12], 'America/Mexico_City': [19.43, -99.13], 'America/Sao_Paulo': [-23.55, -46.63],
   'America/Argentina/Buenos_Aires': [-34.6, -58.38], 'Australia/Sydney': [-33.87, 151.21], 'Australia/Melbourne': [-37.81, 144.96],
   'Australia/Perth': [-31.95, 115.86], 'Pacific/Auckland': [-36.85, 174.76], 'Pacific/Honolulu': [21.31, -157.86],
+  'Europe/Warsaw': [52.23, 21.01], 'Europe/Zurich': [47.37, 8.54], 'Europe/Vienna': [48.21, 16.37], 'Europe/Brussels': [50.85, 4.35],
+  'Europe/Prague': [50.08, 14.44], 'Europe/Copenhagen': [55.68, 12.57], 'Europe/Oslo': [59.91, 10.75], 'Europe/Helsinki': [60.17, 24.94],
+  'Europe/Dublin': [53.35, -6.26], 'Europe/Lisbon': [38.72, -9.14], 'Europe/Athens': [37.98, 23.73], 'Asia/Manila': [14.6, 120.98],
+  'Asia/Kuala_Lumpur': [3.14, 101.69], 'Asia/Karachi': [24.86, 67.0], 'Asia/Tehran': [35.69, 51.39], 'Asia/Riyadh': [24.71, 46.68],
+  'Asia/Jerusalem': [31.77, 35.21], 'Asia/Dhaka': [23.81, 90.41], 'Africa/Lagos': [6.52, 3.38], 'Africa/Nairobi': [-1.29, 36.82],
+  'Africa/Maputo': [-25.97, 32.57], 'America/Phoenix': [33.45, -112.07], 'America/Halifax': [44.65, -63.57],
+  'America/Bogota': [4.71, -74.07], 'America/Lima': [-12.05, -77.04], 'America/Santiago': [-33.45, -70.67],
+  'America/Montevideo': [-34.9, -56.19], 'Pacific/Fiji': [-18.14, 178.44],
   /* the older names that Chrome may report */
   'Asia/Calcutta': [28.61, 77.21], 'America/Buenos_Aires': [-34.6, -58.38], 'Asia/Saigon': [10.82, 106.63],
   'Asia/Ho_Chi_Minh': [10.82, 106.63], 'Asia/Katmandu': [27.72, 85.32], 'Asia/Kathmandu': [27.72, 85.32],
@@ -51,7 +59,7 @@ const PLACE = (() => {
   let tz = '';
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* none */ }
   if (ZONES[tz]) return ZONES[tz];
-  const south = /^(Australia|Antarctica)\/|Sao_Paulo|Buenos_Aires|Santiago|Johannesburg|Auckland/.test(tz);
+  const south = /^(Australia|Antarctica)\/|Sao_Paulo|Buenos_Aires|Santiago|Montevideo|Asuncion|Lima|La_Paz|Johannesburg|Maputo|Harare|Windhoek|Lusaka|Gaborone|Luanda|Auckland|Fiji|Noumea|Chatham|Port_Moresby|Tongatapu|Apia|Easter|Mauritius|Reunion|Dili|Makassar|Jayapura/.test(tz);
   const y = new Date().getFullYear();     /* the zone's standard meridian: the larger offset of January and July is not summer time */
   const std = Math.max(new Date(y, 0, 1).getTimezoneOffset(), new Date(y, 6, 1).getTimezoneOffset());
   return [south ? -34 : 35, -std / 4];
@@ -120,14 +128,15 @@ function skyLight(sky) {
   const ease = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };  /* runs before smooth() exists */
   const night = m >= 12 ? ease(18.8, 20.2, m) : 1 - ease(4.6, 5.9, m);
   L.si *= 1 + (sky.moon - 1) * night;
+  L.mote *= 1 + (sky.moon - 1) * night;          /* no glinting dust on a moonless night */
   return L;
 }
 /* the sky at a moment of today: where the scene's light stands, the moonlight, and a line for the corner */
-function skyAt(d, hour) {
+function skyAt(d, hour, exact) {
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
   const S = sunOn(day);
   sunPeak = Math.min(66, Math.max(40, 56 + 0.5 * (S.alt - 47)));       /* a gentle echo of the season's noon height */
-  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, Math.round(hour * 3600000)).getTime();
+  const at = exact != null ? exact : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, Math.round(hour * 3600000)).getTime();
   const age = moonAge(at);
   const lit = (1 - Math.cos(2 * Math.PI * age / 29.530588861)) / 2;   /* share of the disc in sunlight */
   const transit = (S.noon + age * 24 / 29.530588861) % 24;              /* the moon crosses the meridian later each day */
@@ -160,7 +169,7 @@ function nowInfo() {
   return {
     key: pad(hh) + ':' + pad(mm),
     hour,
-    sky: skyAt(debugDay || d, hour),
+    sky: skyAt(debugDay || d, hour, dbg.minutes === null && debugMin === null && !debugDay ? d.getTime() : null),
     date: d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()) + ' ' + DAYS[d.getDay()]
   };
 }
@@ -1426,7 +1435,8 @@ canvas.addEventListener('webglcontextrestored', () => {
 let lastDraw = -1e9, lastInfoAt = -1e9;
 /* a small serif time in the corner, the one crisp thing on the screen */
 const tmEl = document.getElementById('tm');
-let tmKey = '', tmLine = '', tmInk = -1;
+let tmKey = '', tmLine = '', tmInk = -1, tmReady = false;
+requestAnimationFrame(() => requestAnimationFrame(() => { tmReady = true; updateCaption(); }));   /* after first paint: it fades in */
 if (tmEl) tmEl.lang = JA ? 'ja' : 'en';
 function updateCaption() {
   if (!tmEl) return;
@@ -1434,7 +1444,7 @@ function updateCaption() {
   if (info.sky.line !== tmLine) { tmLine = info.sky.line; tmEl.querySelector('.a').textContent = tmLine; }
   const ink = Math.round(smooth(0.45, 0.85, todL.si) * 20) / 20;   /* dark ink by day, light by night */
   if (ink !== tmInk) { tmInk = ink; tmEl.style.setProperty('--day', ink); }
-  tmEl.classList.toggle('on', !dbg.on);                            /* the playground bar has its own */
+  tmEl.classList.toggle('on', tmReady && !dbg.on);                 /* the playground bar has its own */
 }
 function refreshInfo() {
   info = nowInfo();
@@ -1735,6 +1745,7 @@ const pgBtn = document.getElementById('pg');
 function setDebug(on) {
   dbg.on = on;
   setupDebugBar();
+  updateCaption();
   if (pgBtn) pgBtn.setAttribute('aria-expanded', String(dbg.on));
 }
 if (pgBtn) {
