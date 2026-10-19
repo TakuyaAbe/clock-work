@@ -1274,7 +1274,7 @@ void main(){
   float tw = .5 + .5 * sin(uTime * (.5 + .6 * fract(ph * 3.7)) + ph * 5.);
   float glint = .35 + 1.3 * pow(tw, 8.);
   vec3 c = clamp(uK * (invzF(ndw) - 1. / z) + uCA * .2, -GMAX, GMAX);
-  float sz = max(.014 * uFpx / z, 1.9);
+  float sz = max(.006 * uFpx / z, 1.0);
   c = sign(c + 1e-4) * sqrt(c * c + sz * sz);
   float m = max(abs(c.r), max(abs(c.g), abs(c.b)));
   float h = max(m, .7) + 1.5 / uDpr;
