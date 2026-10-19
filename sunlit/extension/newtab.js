@@ -1420,7 +1420,7 @@ function buildDesk() {
 let mseed = 31;
 const rnd = () => { mseed = (mseed * 16807) % 2147483647; return (mseed - 1) / 2147483646; };
 const motes = [];
-const NM = 70, NM_STILL = 24;
+const NM = 200, NM_STILL = 64;
 for (let i = 0; i < NM; i++) {
   const e = MOTE_E * (0.25 + 0.75 * Math.pow(rnd(), 2.5));
   motes.push(rnd() * 20 - 10, 0.1 + rnd() * 3.1, rnd() * 3.6 - 1.8, e,
