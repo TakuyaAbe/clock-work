@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>New Tab</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+html,body{margin:0;height:100%;background:#0d0c0b;overflow:hidden}
+body{-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+/* the time, small and crisp, as an aid: the line of light carries the reading */
+#tm{position:fixed;left:24px;bottom:28px;z-index:5;display:flex;align-items:center;gap:12px;pointer-events:none;
+  font:400 14px/1 "Iowan Old Style","Palatino Linotype",Palatino,"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif;
+  font-variant-numeric:lining-nums tabular-nums;letter-spacing:.12em;color:#d9d2c6;opacity:0;transition:opacity 1.6s}
+#tm::before{content:"";width:28px;height:1px;background:currentColor;opacity:.6}
+#tm.on{opacity:.55}
+/* the playground toggle: a faint ring in the corner, a 40px target, a serif tooltip to its left on hover */
+#pg{position:fixed;right:8px;bottom:19px;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;
+  cursor:pointer;z-index:11;-webkit-tap-highlight-color:transparent}
+#pg::after{content:"";position:absolute;inset:0;margin:auto;width:11px;height:11px;box-sizing:border-box;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.8);box-shadow:0 0 0 1px rgba(40,34,28,.16);opacity:.3;transition:opacity .4s}
+#pg:hover::after,#pg:focus-visible::after,#pg[aria-expanded="true"]::after{opacity:.8}
+#pg::before{content:attr(aria-label);position:absolute;right:calc(100% - 6px);top:50%;padding:6px 10px;border-radius:6px;
+  background:rgba(20,22,26,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#f3efe8;
+  font:14px/1 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;letter-spacing:.02em;white-space:nowrap;
+  pointer-events:none;opacity:0;transform:translate(3px,-50%);transition:opacity .15s,transform .15s}
+#pg:hover::before,#pg:focus-visible::before{opacity:1;transform:translate(0,-50%);transition:opacity .2s .3s,transform .2s .3s}
+#pg[aria-expanded="true"]::before{display:none}   /* the open bar would sit under it */
+#pg:focus-visible{outline:2px solid rgba(255,255,255,.85);outline-offset:-4px}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label=""></canvas>
+<div id="tm" aria-hidden="true"><span class="t"></span></div>
+<button id="pg" type="button" aria-label="playground" aria-controls="sl-pg" aria-expanded="false"></button>
+<script src="newtab.js"></script>
+</body>
+</html>

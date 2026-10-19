@@ -13,6 +13,21 @@
   },
   "etudes": [
     {
+      "no": 3,
+      "slug": "sunlit",
+      "date": "2026-10-19",
+      "src": "sunlit/extension",
+      "image": "site/img/sunlit.jpg",
+      "title": {
+        "ja": "光の|目盛り",
+        "en": "Sunlit Scale"
+      },
+      "text": {
+        "ja": "机の上の三本の目盛りを、ブラインドの隙間から差すひと筋の光が横切ります。目盛りが滑り、その光の中にいまの時・分・秒が並びます。",
+        "en": "A line of sunlight through a gap in the blind falls across three scales on a desk. They slide so that the current hour, minute and second stand in the light."
+      }
+    },
+    {
       "no": 2,
       "slug": "komorebi",
       "date": "2026-10-12",
