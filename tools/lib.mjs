@@ -41,8 +41,9 @@ function serve() {
     const server = createServer(async (req, res) => {
       const file = resolve(ROOT, "." + decodeURIComponent(new URL(req.url, "http://x").pathname));
       if (!file.startsWith(ROOT + sep)) return res.writeHead(403).end();
-      try { res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(await readFile(file)); }
-      catch { res.writeHead(404).end(); }
+      let body;
+      try { body = await readFile(file); } catch { return res.writeHead(404).end(); }    /* read first: a missing favicon must not answer twice */
+      res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(body);
     });
     server.listen(0, "127.0.0.1", () => { server.unref(); done(`http://127.0.0.1:${server.address().port}`); });
   });
