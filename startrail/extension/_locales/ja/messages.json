@@ -1,0 +1,11 @@
+{
+  "name": {
+    "message": "星の軌跡の時計"
+  },
+  "shortName": {
+    "message": "星の軌跡"
+  },
+  "description": {
+    "message": "毎正時に始まる長時間露光。静かな夜空に、星の弧が分を刻みます。"
+  }
+}

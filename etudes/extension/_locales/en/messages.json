@@ -1,0 +1,13 @@
+{
+  "name": {
+    "message": "Clock Studies — New Tab",
+    "description": "The extension's name in the store and in Chrome."
+  },
+  "short_name": {
+    "message": "Clock Studies"
+  },
+  "description": {
+    "message": "A quiet new tab with a new clock each week. It opens on the newest; choose another or a different one each tab.",
+    "description": "The store summary. 132 characters at most."
+  }
+}

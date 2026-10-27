@@ -13,6 +13,21 @@
   },
   "etudes": [
     {
+      "no": 4,
+      "slug": "startrail",
+      "date": "2026-10-27",
+      "src": "startrail/extension",
+      "image": "site/img/startrail.jpg",
+      "title": {
+        "ja": "星の軌跡の時計",
+        "en": "Star Trail Clock"
+      },
+      "text": {
+        "ja": "毎正時に始まる長時間露光の夜空。星はいま頭上にある本物の星で、その弧の長さが正時からの分を示します。",
+        "en": "A long exposure of the night sky that begins on every hour, where the stars are the real ones overhead now and the length of their trails shows the minutes since the hour."
+      }
+    },
+    {
       "no": 3,
       "slug": "sunlit",
       "date": "2026-10-19",
