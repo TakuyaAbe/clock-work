@@ -1,0 +1,13 @@
+{
+  "name": {
+    "message": "Sunlit Scale New Tab",
+    "description": "The extension's name in the store and in Chrome."
+  },
+  "short_name": {
+    "message": "Sunlit Scale"
+  },
+  "description": {
+    "message": "A quiet new tab: a line of sunlight through the blind falls across three scales on a desk. The current time stands in the light.",
+    "description": "The store summary, 132 characters at most."
+  }
+}

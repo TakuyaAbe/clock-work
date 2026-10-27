@@ -6,6 +6,7 @@ Clocks for the Chrome new tab page. Each folder is a separate Manifest V3 extens
 |---|---|
 | [kinetic/](kinetic/) | Kinetic Clock: the time assembled from small sprung tiles that land exactly on the second. |
 | [komorebi/](komorebi/) | Komorebi Clock: soft tree shadows on a wall, cast by the sun of the hour; one branch hidden among them tells the time. |
+| [sunlit/](sunlit/) | Sunlit Scale: three scales on a desk under a macro lens; they slide so the current time stands in a line of sunlight, or at night a desk lamp's. |
 
 Built packages (`dist/`), promo videos (`media/`) and old design iterations (`attic/`) stay local and are git-ignored.
 
@@ -32,11 +33,14 @@ To add the week's étude:
 - `node tools/crossfade.mjs out.mp4 a.mp4 b.mp4`: clips joined with crossfades.
 - `node tools/ext-check.mjs komorebi/extension`: the clock as Chrome runs the extension, with its errors, permissions, name and description.
 - `node komorebi/store/media.mjs shots|videos`: Komorebi Clock's store images and promo videos, made again.
+- `node sunlit/store/media.mjs shots|videos`: Sunlit Scale's store images and promo videos, made again.
 - `node --test komorebi/test/sky.test.mjs`: Komorebi Clock's sun, moon and almanac against known dates.
 
 ![Kinetic Clock](kinetic/store/screenshot_1280x800_a.png)
 
 ![Komorebi Clock](komorebi/store/screenshot_1280x800_b.png)
+
+![Sunlit Scale](sunlit/store/screenshot_1280x800_c.png)
 
 ---
 
