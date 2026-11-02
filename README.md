@@ -6,6 +6,7 @@ Clocks for the Chrome new tab page. Each folder is a separate Manifest V3 extens
 |---|---|
 | [kinetic/](kinetic/) | Kinetic Clock: the time assembled from small sprung tiles that land exactly on the second. |
 | [komorebi/](komorebi/) | Komorebi Clock: soft tree shadows on a wall, cast by the sun of the hour; one branch hidden among them tells the time. |
+| [nekko/](nekko/) | Roots Clock: under a small seedling, roots grow through the dark soil and write the time; the seconds are a drop of rain seeping down. |
 | [sunlit/](sunlit/) | Sunlit Scale: three scales on a desk under a macro lens; they slide so the current time stands in a line of sunlight, or at night a desk lamp's. |
 
 Built packages (`dist/`), promo videos (`media/`) and old design iterations (`attic/`) stay local and are git-ignored.
@@ -41,6 +42,8 @@ To add the week's étude:
 ![Komorebi Clock](komorebi/store/screenshot_1280x800_b.png)
 
 ![Sunlit Scale](sunlit/store/screenshot_1280x800_c.png)
+
+![Roots Clock](nekko/store/screenshot_1280x800_c.png)
 
 ---
 

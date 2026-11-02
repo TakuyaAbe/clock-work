@@ -13,6 +13,21 @@
   },
   "etudes": [
     {
+      "no": 4,
+      "slug": "nekko",
+      "date": "2026-11-02",
+      "src": "nekko/extension",
+      "image": "site/img/nekko.jpg",
+      "title": {
+        "ja": "ねっこの|時計",
+        "en": "Roots Clock"
+      },
+      "text": {
+        "ja": "小さな双葉の下、暗い土のなかを根がのびて、いまの時刻を書きます。数字が変わると古い根は土に還り、秒はひとしずくの雨になってしみこんでいきます。",
+        "en": "Under a small seedling, roots grow through the dark soil and write the current time. When a figure changes, the old roots go back into the soil; the seconds are a drop of rain seeping down."
+      }
+    },
+    {
       "no": 3,
       "slug": "sunlit",
       "date": "2026-10-19",

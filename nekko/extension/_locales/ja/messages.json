@@ -1,0 +1,13 @@
+{
+  "name": {
+    "message": "ねっこの時計 — 新しいタブ",
+    "description": "ストアと Chrome に出る拡張機能の名前。"
+  },
+  "short_name": {
+    "message": "ねっこの時計"
+  },
+  "description": {
+    "message": "静かな新しいタブ。小さな双葉の下、暗い土のなかを根がのびて、いまの時刻を書きます。",
+    "description": "ストアの概要。132 文字以内。"
+  }
+}

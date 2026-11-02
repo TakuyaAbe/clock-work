@@ -1,0 +1,13 @@
+{
+  "name": {
+    "message": "Roots Clock New Tab",
+    "description": "The extension's name in the store and in Chrome."
+  },
+  "short_name": {
+    "message": "Roots Clock"
+  },
+  "description": {
+    "message": "A quiet new tab: under a small seedling, roots grow through the dark soil and write the current time.",
+    "description": "The store summary, 132 characters at most."
+  }
+}
