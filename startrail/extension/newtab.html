@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Star Trail Clock</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;height:100%;background:#070c15;overflow:hidden}
+body{-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#tm{position:fixed;left:24px;bottom:30px;z-index:5;display:grid;grid-template-columns:28px 1fr;column-gap:12px;row-gap:8px;width:max-content;max-width:calc(100vw - 112px);align-items:center;pointer-events:none;font:400 15px/1 "Iowan Old Style","Palatino Linotype",Palatino,"Hiragino Mincho ProN","Yu Mincho",YuMincho,Georgia,serif;font-variant-numeric:lining-nums tabular-nums;letter-spacing:.1em;color:#d4d7d5;text-shadow:0 0 8px #10151b;opacity:.82}
+#tm::before{content:"";grid-row:1;grid-column:1;width:28px;height:1px;background:currentColor;opacity:.75}
+#tm .t{grid-row:1;grid-column:2}
+#tm .a{grid-row:2;grid-column:2;font-size:10px;line-height:1.45;letter-spacing:.13em;opacity:.65}
+#pg{position:fixed;right:8px;bottom:19px;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:11}
+#pg::after{content:"";position:absolute;inset:0;margin:auto;width:11px;height:11px;box-sizing:border-box;border-radius:50%;border:1.5px solid #d9e1e7;opacity:.3;transition:opacity .4s}
+#pg:hover::after,#pg:focus-visible::after,#pg[aria-expanded="true"]::after{opacity:.8}
+#pg:focus-visible{outline:1px solid #d9e1e7;outline-offset:-4px}
+#playground{position:fixed;right:24px;bottom:76px;padding:18px 20px;max-width:calc(100vw - 88px);border:1px solid #ffffff18;border-radius:5px;background:#0b121dec;box-shadow:0 8px 40px #0004;color:#c1c7cd;font:12px/1.8 Georgia,"Yu Mincho",serif;z-index:10}
+#playground[hidden]{display:none}
+#playground label{display:block;margin-top:8px}input{accent-color:#9dadaf;vertical-align:middle;max-width:100%}#hour{width:54px;margin-left:10px}#minute{width:190px;margin-left:10px}#explain{max-width:260px;margin:0 0 8px;color:#8e9ca9}button,input{font:inherit}#live{margin-top:12px;padding:4px 10px;background:transparent;border:1px solid #ffffff30;border-radius:3px;color:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label="Star trails above a quiet hillside"></canvas>
+<div id="tm"><span class="t"></span><span class="a"></span></div>
+<button id="pg" type="button" aria-label="Playground" aria-controls="playground" aria-expanded="false"></button>
+<section id="playground" hidden>
+<p id="explain"></p>
+<label><span id="hour-label"></span><input id="hour" type="number" min="0" max="23" value="22"></label>
+<label><span id="minute-label"></span><input id="minute" type="range" min="0" max="59" value="30"></label>
+<button id="live" type="button"></button>
+</section>
+<script src="newtab.js"></script>
+</body>
+</html>

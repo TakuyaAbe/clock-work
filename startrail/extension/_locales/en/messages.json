@@ -1,0 +1,11 @@
+{
+  "name": {
+    "message": "Star Trail Clock"
+  },
+  "shortName": {
+    "message": "Star Trails"
+  },
+  "description": {
+    "message": "A quiet night sky. Each hour begins a new exposure; the stars trace its passing minutes."
+  }
+}

@@ -8,5 +8,7 @@
   "assets": {
     "directory": "./dist/site",
     "not_found_handling": "404-page"
-  }
+  },
+  // a branch other than main builds a preview (`wrangler preview`), which needs this block
+  "previews": {}
 }

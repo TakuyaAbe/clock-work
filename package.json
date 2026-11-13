@@ -4,6 +4,7 @@
   "description": "Clock Studies (時計のエチュード): clocks for the screen, one each week.",
   "scripts": {
     "build": "node site/build.mjs",
+    "build:etudes": "node etudes/build.mjs",
     "login": "XDG_CONFIG_HOME=.wrangler-home wrangler login",
     "whoami": "XDG_CONFIG_HOME=.wrangler-home wrangler whoami",
     "preview": "npm run build && XDG_CONFIG_HOME=.wrangler-home wrangler dev",
