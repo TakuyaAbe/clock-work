@@ -7,6 +7,7 @@ Clocks for the Chrome new tab page. Each folder is a separate Manifest V3 extens
 | [kinetic/](kinetic/) | Kinetic Clock: the time assembled from small sprung tiles that land exactly on the second. |
 | [komorebi/](komorebi/) | Komorebi Clock: soft tree shadows on a wall, cast by the sun of the hour; one branch hidden among them tells the time. |
 | [sunlit/](sunlit/) | Sunlit Scale: three scales on a desk under a macro lens; they slide so the current time stands in a line of sunlight, or at night a desk lamp's. |
+| [wdth/](wdth/) | Width Clock (a prototype): four rows of hairline digits in a variable font, each number condensed and many when small, extended and few when large. |
 
 Built packages (`dist/`), promo videos (`media/`) and old design iterations (`attic/`) stay local and are git-ignored.
 

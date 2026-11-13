@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>New Tab</title>
+<link rel="icon" href="icons/icon32.png">
+<meta name="description" content="A clock read by width: the hours, minutes and seconds each fill a row, thin and many when small, wide and few when large.">
+<style>
+@font-face{font-family:"Flex Digits";src:url(fonts/RobotoFlex-digits.woff2) format("woff2");font-weight:100 1000;font-stretch:25% 151%;font-display:block}
+:root{--bg:#ecebe6;--ink:#141414;--accent:#e8432a;--mute:rgba(20,20,20,.42);--rule:rgba(20,20,20,.55)}
+@media (prefers-color-scheme:dark){:root{--bg:#111110;--ink:#e9e7e1;--accent:#ff5a3c;--mute:rgba(233,231,225,.42);--rule:rgba(233,231,225,.55)}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased}
+#clock{position:fixed;inset:0;visibility:hidden}
+#clock.ready{visibility:visible}
+.num{position:absolute;left:50%;transform:translateX(-50%);font-family:"Flex Digits",sans-serif;line-height:1;white-space:nowrap;font-kerning:none;font-feature-settings:"tnum";user-select:none;-webkit-user-select:none}
+/* the playground toggle: a faint ring in the corner, a 40px target; it inverts what is under it, so it shows on paper and on ink */
+#pg{position:fixed;right:8px;bottom:8px;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;z-index:11;mix-blend-mode:difference;-webkit-tap-highlight-color:transparent}
+#pg::after{content:"";position:absolute;inset:0;margin:auto;width:11px;height:11px;box-sizing:border-box;border-radius:50%;border:1.5px solid #fff;opacity:.45;transition:opacity .4s}
+#pg:hover::after,#pg:focus-visible::after,#pg[aria-expanded="true"]::after{opacity:1}
+#pg:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+/* on the site, the way back to the index is drawn in a light ink: here it inverts the paper under it instead */
+.etude-back:not(:hover):not(:focus-visible){mix-blend-mode:difference;opacity:.7}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#probe{position:absolute;left:0;top:0;visibility:hidden;font-family:"Flex Digits",sans-serif;font-size:1000px;line-height:1;white-space:nowrap;font-kerning:none;font-feature-settings:"tnum"}
+</style>
+</head>
+<body>
+<div id="clock" aria-hidden="true"></div>
+<div class="sr" role="status" aria-live="polite" aria-atomic="true" id="sr"></div>
+<button id="pg" type="button" aria-label="playground" aria-controls="wd-pg" aria-expanded="false"></button>
+<span id="probe" aria-hidden="true">00</span>
+<script src="newtab.js"></script>
+</body>
+</html>
