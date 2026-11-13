@@ -5,7 +5,7 @@ A prototype. Four rows fill the page: the hours, minutes, seconds and hundredths
 - `extension/newtab.html#t=10:08:42` stops the clock; the other hash values are listed at the top of `extension/newtab.js`.
 - The faint ring in the lower right, or the G key, opens the playground: the time, the font's axes at zero and at the maximum, the tracking, the row gap and the margin. The values are kept in localStorage, and "Copy values" gives them as a hash.
 
-Not done yet: a dark scheme and portrait screens checked, icons, store graphics, the site entry. The name and the slug are provisional.
+Not done yet: a dark scheme and portrait screens checked, store graphics. The name and the slug are provisional.
 
 ## The font
 
@@ -36,6 +36,6 @@ t.save("RobotoFlex-digits.woff2")
 - `extension/newtab.html#t=10:08:42` で時刻を止められます。ほかのハッシュの値は `extension/newtab.js` の先頭にあります。
 - 右下の薄い輪か G キーで調整パネルが開きます。時刻、ゼロのときと最大のときの軸、字間、行間、余白を動かせます。値は localStorage に残り、「値をコピー」でハッシュの形で取り出せます。
 
-まだのこと: 暗い配色と縦長画面の確認、アイコン、ストアの素材、サイトへの追加。名前とスラッグは仮です。
+まだのこと: 暗い配色と縦長画面の確認、ストアの素材。名前とスラッグは仮です。
 
 フォントは Roboto Flex（SIL Open Font License 1.1）を、数字10字と4つの軸（幅・太さ・字の中の広さ・数字の高さ）だけに絞ったものです。作り方は上のとおりです。
