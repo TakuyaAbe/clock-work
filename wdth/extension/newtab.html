@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>New Tab</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="icons/icon32.png">
 <meta name="description" content="A clock read by width: the hours, minutes and seconds each fill a row, thin and many when small, wide and few when large.">
 <style>
 @font-face{font-family:"Flex Digits";src:url(fonts/RobotoFlex-digits.woff2) format("woff2");font-weight:100 1000;font-stretch:25% 151%;font-display:block}
@@ -20,6 +20,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hi
 #pg::after{content:"";position:absolute;inset:0;margin:auto;width:11px;height:11px;box-sizing:border-box;border-radius:50%;border:1.5px solid #fff;opacity:.45;transition:opacity .4s}
 #pg:hover::after,#pg:focus-visible::after,#pg[aria-expanded="true"]::after{opacity:1}
 #pg:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+/* on the site, the way back to the index is drawn in a light ink: here it inverts the paper under it instead */
+.etude-back:not(:hover):not(:focus-visible){mix-blend-mode:difference;opacity:.7}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #probe{position:absolute;left:0;top:0;visibility:hidden;font-family:"Flex Digits",sans-serif;font-size:1000px;line-height:1;white-space:nowrap;font-kerning:none;font-feature-settings:"tnum"}
 </style>
